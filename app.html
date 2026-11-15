@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CRM de Vendas Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Google+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<style>
+/* Layout: sidebar fixa + topbar + área de conteúdo em grid de cards (padrão do dashboard de referência) */
+:root{
+  --bg:#f6f8fb; --card:#ffffff; --line:#e4e8ef; --text:#0f172a; --muted:#64748b; --soft:#f1f5f9;
+  --blue:#2563eb; --blue-soft:#eaf1ff; --green:#16a34a; --green-soft:#e9f8ef; --amber:#d97706; --amber-soft:#fff6e5;
+  --red:#dc2626; --red-soft:#fdeeee; --violet:#7c3aed; --violet-soft:#f2ecff; --wa:#16a34a;
+  --font:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0b1020; --card:#121a2c; --line:#24304a; --text:#e6ebf5; --muted:#93a0b8; --soft:#18223a;
+  --blue:#5b8cff; --blue-soft:#1b2a4d; --green:#34c26b; --green-soft:#12301f; --amber:#f0a332; --amber-soft:#33260f;
+  --red:#f26363; --red-soft:#3a1717; --violet:#a684ff; --violet-soft:#261c45; color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#0b1020; --card:#121a2c; --line:#24304a; --text:#e6ebf5; --muted:#93a0b8; --soft:#18223a;
+  --blue:#5b8cff; --blue-soft:#1b2a4d; --green:#34c26b; --green-soft:#12301f; --amber:#f0a332; --amber-soft:#33260f;
+  --red:#f26363; --red-soft:#3a1717; --violet:#a684ff; --violet-soft:#261c45; color-scheme:dark;}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:14px;line-height:1.45}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.app{display:grid;grid-template-columns:232px 1fr;min-height:100%}
+aside{background:var(--card);border-right:1px solid var(--line);position:sticky;top:0;height:100vh;display:flex;flex-direction:column}
+.brand{display:flex;align-items:center;gap:10px;padding:18px 16px;font-weight:700;font-size:17px}
+.brand .logo{width:32px;height:32px;border-radius:9px;background:var(--blue);display:grid;place-items:center;color:#fff}
+.nav{flex:1;overflow:auto;padding:4px 10px 12px}
+.nav h6{margin:16px 8px 6px;font-size:10.5px;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;font-weight:600}
+.nav a{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;color:var(--text);text-decoration:none;font-size:13.5px}
+.nav a:hover{background:var(--soft)}
+.nav a.on{background:var(--blue-soft);color:var(--blue);font-weight:600}
+.nav a .cnt{margin-left:auto;font-size:11px;background:var(--red);color:#fff;border-radius:10px;padding:1px 7px;font-weight:600}
+.nav a .cnt.b{background:var(--blue)}
+.nav svg{width:16px;height:16px}
+.me{border-top:1px solid var(--line);padding:12px 16px;display:flex;gap:10px;align-items:center}
+.av{width:32px;height:32px;border-radius:50%;background:var(--blue-soft);color:var(--blue);display:grid;place-items:center;font-weight:600;font-size:12px;flex:none}
+.main{min-width:0}
+.top{height:56px;display:flex;align-items:center;gap:12px;padding:0 20px;border-bottom:1px solid var(--line);background:var(--card);position:sticky;top:0;z-index:5}
+.crumb{color:var(--muted);font-size:13.5px}.crumb b{color:var(--text);font-weight:500}
+.top .sp{flex:1}
+.search{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:8px;padding:6px 10px;width:260px;color:var(--muted)}
+.search input{border:0;outline:0;background:transparent;width:100%}
+.iconbtn{width:34px;height:34px;border-radius:50%;border:0;background:transparent;display:grid;place-items:center;position:relative}
+.iconbtn:hover{background:var(--soft)}
+.iconbtn.p{background:var(--blue);color:#fff}
+.dot{position:absolute;top:2px;right:2px;background:var(--red);color:#fff;font-size:9px;border-radius:8px;padding:0 4px;font-weight:700}
+.demo{background:var(--blue-soft);color:var(--blue);text-align:center;font-size:12px;padding:6px}
+.content{padding:24px;max-width:1500px;margin:0 auto}
+.ph{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.ph h1{font-size:24px;margin:0;font-weight:700;text-wrap:balance}
+.ph p{margin:2px 0 0;color:var(--muted);font-size:13px}
+.ph .sp{flex:1}
+.sel,.btn{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:7px 12px;font-size:13px}
+.btn{display:inline-flex;align-items:center;gap:6px;font-weight:500}
+.btn:hover{background:var(--soft)}
+.btn.pri{background:var(--blue);color:#fff;border-color:var(--blue)}
+.btn.pri:hover{filter:brightness(1.07)}
+.btn.wa{background:var(--wa);border-color:var(--wa);color:#fff}
+.btn.sm{padding:4px 9px;font-size:12px}
+.btn svg{width:14px;height:14px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--card)}
+.seg button{border:0;background:transparent;padding:7px 12px;font-size:13px}
+.seg button.on{background:var(--blue);color:#fff}
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g21{grid-template-columns:2fr 1fr}
+.g12{grid-template-columns:1fr 2fr}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;position:relative}
+.kpi small{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.kpi .v{font-size:22px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums}
+.kpi .s{font-size:11.5px;color:var(--muted)}
+.kpi i,.kpi svg.ic{position:absolute;top:12px;right:12px;width:15px;height:15px}
+.up{color:var(--green)}.dn{color:var(--red)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;min-width:0}
+.card h3{margin:0 0 12px;font-size:14.5px;font-weight:600;display:flex;align-items:center;gap:8px}
+.card h3 .sp{flex:1}
+.card h3 a{font-size:12px;color:var(--blue);text-decoration:none;font-weight:500;cursor:pointer}
+.card h3 svg{width:16px;height:16px}
+.note{font-size:12px;color:var(--muted);background:var(--soft);border-radius:8px;padding:8px 10px;margin-top:10px}
+.note b{color:var(--text)}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;white-space:nowrap}
+.pill.b{background:var(--blue-soft);color:var(--blue)}.pill.g{background:var(--green-soft);color:var(--green)}
+.pill.a{background:var(--amber-soft);color:var(--amber)}.pill.r{background:var(--red-soft);color:var(--red)}
+.pill.v{background:var(--violet-soft);color:var(--violet)}.pill.n{background:var(--soft);color:var(--muted)}
+.pill svg{width:11px;height:11px}
+.muted{color:var(--muted)}
+.chartbox{position:relative;height:260px}
+.chartbox.sm{height:210px}
+.row{display:flex;align-items:center;gap:10px}
+.list{display:flex;flex-direction:column;gap:8px}
+.li{border:1px solid var(--line);border-radius:9px;padding:10px 12px;display:flex;align-items:center;gap:10px}
+.li.warn{background:var(--red-soft);border-color:transparent}
+.li .t{font-weight:600;font-size:13px}.li .d{font-size:11.5px;color:var(--muted)}
+.li .r{margin-left:auto;text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.stagebar{margin-bottom:10px}
+.stagebar .row{justify-content:space-between;font-size:12.5px}
+.track{height:14px;background:var(--soft);border-radius:4px;overflow:hidden;margin-top:4px}
+.track span{display:block;height:100%;border-radius:4px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line);cursor:pointer;white-space:nowrap}
+td{padding:10px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:hover td{background:var(--soft)}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.tw{overflow-x:auto}
+/* Kanban */
+.kanban{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(250px,1fr);gap:12px;overflow-x:auto;padding-bottom:8px}
+.col{background:var(--soft);border-radius:10px;padding:10px;min-height:420px}
+.col.over{outline:2px dashed var(--blue)}
+.colh{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;padding:2px 4px}
+.colh b{font-size:13px}.colh span{font-size:11.5px;color:var(--muted)}
+.colh .bar{height:3px;border-radius:2px;margin:6px 4px 10px}
+.deal{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:10px;margin-bottom:8px;cursor:grab}
+.deal:hover{border-color:var(--blue)}
+.deal .t{font-weight:600;font-size:13px}
+.deal .c{font-size:12px;color:var(--muted);margin:2px 0 8px}
+.deal .f{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:12px}
+.deal .val{font-weight:700;margin-right:auto}
+.next{font-size:11.5px;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);display:flex;gap:6px;align-items:center;color:var(--muted)}
+.next svg{width:12px;height:12px}
+/* Email */
+.mail{display:grid;grid-template-columns:210px 380px 1fr;border:1px solid var(--line);border-radius:12px;background:var(--card);min-height:640px;overflow:hidden}
+.mail .fold{border-right:1px solid var(--line);padding:12px}
+.mail .fold button{display:flex;width:100%;align-items:center;gap:8px;border:0;background:transparent;padding:8px 10px;border-radius:8px;text-align:left;font-size:13px}
+.mail .fold button.on{background:var(--blue-soft);color:var(--blue);font-weight:600}
+.mail .fold button span{margin-left:auto;font-size:11.5px;color:var(--muted)}
+.mail .fold svg{width:15px;height:15px}
+.mlist{border-right:1px solid var(--line);overflow:auto;max-height:720px}
+.mi{padding:12px 14px;border-bottom:1px solid var(--line);cursor:pointer}
+.mi:hover{background:var(--soft)}
+.mi.on{background:var(--blue-soft)}
+.mi.auto{opacity:.6}
+.mi .h{display:flex;gap:8px;align-items:baseline}
+.mi .h b{font-size:13px}.mi .h span{margin-left:auto;font-size:11px;color:var(--muted)}
+.mi .s{font-size:12.5px;font-weight:500;margin:2px 0}
+.mi .p{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mread{padding:20px;overflow:auto;max-height:720px}
+.mread h2{font-size:18px;margin:0 0 6px}
+.mbody{font-size:13.5px;line-height:1.65;white-space:pre-line;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:14px 0;margin:14px 0}
+.ai{border:1px solid var(--violet-soft);background:linear-gradient(0deg,var(--violet-soft),var(--violet-soft));border-radius:10px;padding:12px 14px;font-size:13px}
+.ai h4{margin:0 0 6px;font-size:12.5px;color:var(--violet);display:flex;gap:6px;align-items:center}
+.ai h4 svg{width:14px;height:14px}
+.ai ul{margin:4px 0 0;padding-left:18px}
+.rules{font-size:12px;color:var(--muted);padding:10px;border-top:1px solid var(--line);margin-top:10px}
+/* Agenda */
+.day{display:grid;grid-template-columns:56px 1fr;position:relative}
+.hr{height:58px;border-top:1px solid var(--line);font-size:11px;color:var(--muted);padding-top:2px}
+.slots{position:relative}
+.ev{position:absolute;left:8px;right:8px;border-radius:8px;padding:6px 10px;font-size:12px;border-left:3px solid;cursor:pointer;overflow:hidden}
+.ev b{display:block;font-size:12.5px}
+.ev.on{box-shadow:0 0 0 2px var(--blue)}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.cal .wd{font-size:11px;text-transform:uppercase;color:var(--muted);text-align:center;font-weight:600;padding:4px}
+.cd{border:1px solid var(--line);border-radius:9px;min-height:96px;padding:7px;font-size:11.5px;display:flex;flex-direction:column;gap:3px;background:var(--card)}
+.cd.out{opacity:.35}
+.cd.today{outline:2px solid var(--blue)}
+.cd .n{font-weight:700;font-size:12.5px;display:flex;justify-content:space-between}
+.cd .fc{border-radius:5px;padding:2px 5px;font-weight:600;font-variant-numeric:tabular-nums}
+.cd .mt{color:var(--muted)}
+.heat{display:flex;gap:4px;align-items:center;font-size:11px;color:var(--muted)}
+.heat span{width:18px;height:10px;border-radius:3px;display:inline-block}
+/* Conversas */
+.conv{display:grid;grid-template-columns:260px 1fr 360px;gap:16px}
+.cl{display:flex;flex-direction:column;gap:8px}
+.cv{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--card);cursor:pointer}
+.cv.on{border-color:var(--blue);box-shadow:0 0 0 1px var(--blue)}
+.cv .t{font-weight:600;font-size:13px}.cv .d{font-size:11.5px;color:var(--muted)}
+.att{display:flex;gap:10px;align-items:center;border:1px dashed var(--line);border-radius:9px;padding:10px;margin-bottom:12px;font-size:12.5px}
+.att .w{flex:1;height:26px;background:repeating-linear-gradient(90deg,var(--blue) 0 2px,transparent 2px 5px);opacity:.35;border-radius:3px}
+.tr{display:flex;flex-direction:column;gap:10px;max-height:560px;overflow:auto;padding-right:6px}
+.tl{display:grid;grid-template-columns:44px 1fr;gap:8px;font-size:13px}
+.tl time{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;padding-top:2px}
+.tl b{font-size:12px}
+.tl mark{background:var(--amber-soft);color:inherit;border-radius:3px;padding:0 2px}
+.gauge{display:flex;flex-direction:column;align-items:center}
+.thermo{height:12px;border-radius:6px;background:linear-gradient(90deg,#60a5fa,#facc15,#f97316,#dc2626);position:relative;margin:10px 0 4px}
+.thermo i{position:absolute;top:-5px;width:4px;height:22px;background:var(--text);border-radius:2px}
+.thl{display:flex;justify-content:space-between;font-size:10.5px;color:var(--muted)}
+.fac{display:grid;grid-template-columns:1fr 90px 34px;gap:8px;align-items:center;font-size:12.5px;margin:6px 0}
+.fac .track{height:7px;margin:0}
+.cad{position:relative;padding-left:18px}
+.cad:before{content:"";position:absolute;left:5px;top:6px;bottom:6px;width:2px;background:var(--line)}
+.cs{position:relative;margin-bottom:12px;font-size:12.5px}
+.cs:before{content:"";position:absolute;left:-17px;top:4px;width:10px;height:10px;border-radius:50%;background:var(--card);border:2px solid var(--blue)}
+.cs b{display:block}
+.worth{border-radius:10px;padding:12px;display:flex;gap:10px;align-items:center;margin-bottom:12px}
+.worth .big{font-size:26px;font-weight:700}
+/* Follow-up */
+.fu{display:grid;grid-template-columns:1fr 440px;gap:16px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--card);border-radius:20px;padding:5px 11px;font-size:12px}
+.chip:hover,.chip.on{border-color:var(--blue);color:var(--blue);background:var(--blue-soft)}
+textarea{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px;background:var(--card);resize:vertical;min-height:150px;font-size:13px;line-height:1.55}
+input[type=text],input[type=number],input[type=password]{border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:var(--card);width:100%}
+.prio{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;font-weight:700;font-size:12px;flex:none}
+.wa-preview{background:#e7ddd3;border-radius:10px;padding:14px;margin-top:10px}
+:root[data-theme="dark"] .wa-preview{background:#1d2a25}
+.bubble{background:#dcf8c6;color:#111;border-radius:8px 0 8px 8px;padding:8px 10px;font-size:13px;white-space:pre-line;margin-left:auto;max-width:92%;box-shadow:0 1px 1px rgba(0,0,0,.1)}
+/* Metas */
+.goalin{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.goalin .big{font-size:28px;font-weight:700;width:200px;border:2px solid var(--blue);border-radius:10px;padding:6px 12px;background:var(--card)}
+.funnelrev{display:flex;flex-direction:column;gap:6px;align-items:center}
+.fr{border-radius:8px;color:#fff;text-align:center;padding:10px;font-weight:600;font-size:13px}
+.fr small{display:block;font-weight:400;opacity:.9;font-size:11.5px}
+.sl{display:grid;grid-template-columns:150px 1fr 54px;gap:10px;align-items:center;font-size:12.5px;margin:8px 0}
+input[type=range]{width:100%;accent-color:var(--blue)}
+.prog{height:16px;border-radius:8px;background:var(--soft);overflow:hidden;position:relative}
+.prog span{display:block;height:100%;background:var(--green)}
+.formula{font-family:ui-monospace,Menlo,monospace;font-size:12px;background:var(--soft);border-radius:8px;padding:10px;margin-top:8px}
+/* Integrações */
+.ints{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px}
+.int{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.int .hd{display:flex;gap:10px;align-items:center}
+.lg{width:38px;height:38px;border-radius:9px;display:grid;place-items:center;color:#fff;font-weight:700;font-size:14px;flex:none}
+.int .hd b{font-size:14px}.int .hd small{display:block;color:var(--muted);font-size:11.5px}
+.int p{margin:0;font-size:12.5px;color:var(--muted)}
+.int .ft{display:flex;gap:6px;align-items:center;margin-top:auto;font-size:11.5px;color:var(--muted)}
+.int .ft .btn{margin-left:auto}
+.feat{border:2px solid var(--blue);background:linear-gradient(180deg,var(--blue-soft),var(--card) 60%)}
+.subs{display:flex;flex-wrap:wrap;gap:5px}
+/* Atividades */
+.tlx{position:relative;padding-left:26px}
+.tlx:before{content:"";position:absolute;left:11px;top:0;bottom:0;width:2px;background:var(--line)}
+.ti{position:relative;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px;display:flex;gap:10px;align-items:flex-start}
+.ti .ic{position:absolute;left:-26px;top:10px;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;border:2px solid var(--bg)}
+.ti .ic svg{width:12px;height:12px}
+.ti .t{font-size:13px;font-weight:600}.ti .d{font-size:12px;color:var(--muted)}
+.ti .w{margin-left:auto;font-size:11.5px;color:var(--muted);white-space:nowrap;text-align:right}
+.dayh{font-size:11.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:14px 0 8px -26px}
+/* Chat IA */
+.chat{border-top:1px solid var(--line);margin:12px -18px -18px;padding:16px 18px}
+.msgs{max-height:300px;overflow:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:10px}
+.msg{max-width:85%;padding:9px 12px;border-radius:10px;font-size:13px;white-space:pre-line}
+.msg.u{align-self:flex-end;background:var(--blue);color:#fff}
+.msg.a{align-self:flex-start;background:var(--soft)}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--text);color:var(--bg);padding:10px 14px;border-radius:9px;font-size:13px;opacity:0;transform:translateY(10px);transition:.2s;z-index:50;pointer-events:none}
+.toast.show{opacity:1;transform:none}
+.modal{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;place-items:center;z-index:40;padding:16px}
+.modal.show{display:grid}
+.modal .box{background:var(--card);border-radius:14px;padding:20px;width:min(480px,100%);border:1px solid var(--line)}
+.modal label{font-size:12px;font-weight:600;display:block;margin:12px 0 4px}
+.menu-btn{display:none}
+@media (max-width:1200px){.conv{grid-template-columns:220px 1fr}.conv>.side{grid-column:1/-1}.mail{grid-template-columns:180px 1fr}.mail .mread{grid-column:1/-1;border-top:1px solid var(--line)}}
+@media (max-width:980px){
+  .app{grid-template-columns:1fr} aside{position:fixed;left:-240px;width:232px;z-index:30;transition:.2s} aside.open{left:0}
+  .menu-btn{display:grid} .g2,.g3,.g21,.g12,.fu,.conv{grid-template-columns:1fr} .search{display:none}
+  .mail{grid-template-columns:1fr}.mail .fold{display:flex;overflow-x:auto;gap:4px;border-right:0;border-bottom:1px solid var(--line)}.mail .fold button{white-space:nowrap;width:auto}
+  .content{padding:16px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* ===== Identidade visual Google (Material 3 / Workspace), limpa ===== */
+:root{
+  --bg:#ffffff; --card:#ffffff; --line:#e3e3e3; --text:#1f1f1f; --muted:#5f6368; --soft:#f1f3f4;
+  --blue:#1a73e8; --blue-soft:#e8f0fe; --green:#1e8e3e; --green-soft:#e6f4ea; --amber:#b06000; --amber-soft:#fef7e0;
+  --red:#d93025; --red-soft:#fce8e6; --violet:#a142f4; --violet-soft:#f3e8fd; --wa:#1e8e3e;
+  --navon:#d3e3fd; --navon-text:#041e49; --surface:#f8fafd;
+  --font:'Roboto',system-ui,-apple-system,'Segoe UI',sans-serif; --display:'Google Sans','Roboto',system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#1f1f1f; --card:#28292a; --line:#3c4043; --text:#e3e3e3; --muted:#9aa0a6; --soft:#303134;
+  --blue:#8ab4f8; --blue-soft:#283142; --green:#81c995; --green-soft:#1e3a2a; --amber:#fdd663; --amber-soft:#3b3320;
+  --red:#f28b82; --red-soft:#432a28; --violet:#d7aefb; --violet-soft:#3a2d4a; --navon:#004a77; --navon-text:#c2e7ff; --surface:#1f1f1f}}
+:root[data-theme="dark"]{
+  --bg:#1f1f1f; --card:#28292a; --line:#3c4043; --text:#e3e3e3; --muted:#9aa0a6; --soft:#303134;
+  --blue:#8ab4f8; --blue-soft:#283142; --green:#81c995; --green-soft:#1e3a2a; --amber:#fdd663; --amber-soft:#3b3320;
+  --red:#f28b82; --red-soft:#432a28; --violet:#d7aefb; --violet-soft:#3a2d4a; --navon:#004a77; --navon-text:#c2e7ff; --surface:#1f1f1f}
+body{background:var(--surface)}
+aside{background:var(--surface);border-right:0}
+.brand{font-family:var(--display);font-size:20px;font-weight:500;padding:18px 20px}
+.glogo{width:28px;height:28px;display:grid;grid-template-columns:1fr 1fr;gap:3px}
+.glogo span{border-radius:50%}
+.nav h6{font-family:var(--display);text-transform:none;letter-spacing:0;font-size:12px;font-weight:500;margin:18px 16px 4px}
+.nav a{border-radius:999px;padding:9px 16px;font-size:14px;gap:14px}
+.nav a:hover{background:var(--soft)}
+.nav a.on{background:var(--navon);color:var(--navon-text);font-weight:700}
+.nav a .cnt,.nav a .cnt.b{background:transparent;color:inherit;font-weight:700;font-size:12px;padding:0}
+.nav svg{width:18px;height:18px}
+.me{border-top:0}
+.top{background:var(--surface);border-bottom:0;height:64px}
+.search{background:var(--soft);border:0;border-radius:999px;padding:10px 18px;width:min(560px,40vw);order:-1;margin-left:8px}
+.top .crumb{display:none}
+.demo{display:none}
+.main{background:var(--surface)}
+.content{background:var(--card);border-radius:24px 0 0 0;min-height:calc(100% - 64px);padding:28px 32px;max-width:none;margin:0}
+.ph h1{font-family:var(--display);font-weight:400;font-size:28px}
+.card,.int,.kpi,.mail,.cv,.ti,.li,.deal{border-color:var(--line)}
+.card{border-radius:16px;padding:20px}
+.card h3{font-family:var(--display);font-weight:500;font-size:16px}
+.kpi{border-radius:16px;padding:16px 18px;background:var(--card)}
+.kpi small{text-transform:none;letter-spacing:0;font-size:12.5px;font-weight:500}
+.kpi .v{font-family:var(--display);font-weight:400;font-size:28px}
+.btn,.sel{border-radius:999px;padding:8px 16px;border-color:#747775;font-weight:500;color:var(--blue)}
+.sel{color:var(--text)}
+.btn.pri{background:var(--blue);border-color:var(--blue);color:#fff}
+:root[data-theme="dark"] .btn.pri{color:#062e6f}
+.btn.wa{color:#fff}
+.btn.sm{padding:5px 12px}
+.btn{white-space:nowrap;text-decoration:none}
+.demotag{font-size:11.5px;color:var(--muted);background:var(--soft);border-radius:999px;padding:4px 10px}
+.seg{border-radius:999px;border-color:#747775}
+.seg button{padding:8px 16px;font-weight:500}
+.seg button.on{background:var(--navon);color:var(--navon-text)}
+.chip{border-radius:8px;border-color:#747775;padding:6px 12px}
+.chip:hover,.chip.on{background:var(--navon);color:var(--navon-text);border-color:transparent}
+.pill{border-radius:8px;font-weight:500}
+.iconbtn.p{border-radius:16px;width:44px;height:44px;background:var(--blue-soft);color:var(--navon-text);box-shadow:0 1px 3px rgba(60,64,67,.3)}
+.col{background:var(--surface);border-radius:16px}
+.deal{border-radius:12px}
+.deal:hover,.cv.on{box-shadow:0 1px 3px rgba(60,64,67,.3),0 4px 8px 3px rgba(60,64,67,.15);border-color:transparent}
+.mail{border-radius:16px}
+.mail .fold button{border-radius:999px;padding:9px 14px}
+.mail .fold button.on{background:var(--navon);color:var(--navon-text)}
+.mi.on{background:var(--blue-soft)}
+.ai{background:var(--blue-soft);border:0;border-radius:12px}
+.ai h4{color:var(--blue)}
+.note{border-radius:12px}
+.li{border-radius:12px}
+.li.warn{background:var(--red-soft)}
+th{text-transform:none;letter-spacing:0;font-size:12.5px;font-weight:500}
+td{border-color:var(--line)}
+.int{border-radius:16px}
+.feat{border:1px solid var(--line);background:var(--card);box-shadow:0 1px 3px rgba(60,64,67,.2)}
+.lg{border-radius:50%}
+.toast{background:#323232;color:#fff;border-radius:4px}
+.modal .box{border-radius:28px;padding:24px}
+.cd{border-radius:12px}
+.track{border-radius:999px}.track span{border-radius:999px}
+.prog{border-radius:999px}
+input[type=text],input[type=number],input[type=password],textarea{border-radius:8px;border-color:#747775}
+.goalin .big{border-radius:12px;border-color:var(--blue);font-family:var(--display);font-weight:400}
+.msg.a{background:var(--soft)}
+.worth .big,.v{font-variant-numeric:tabular-nums}
+@media (max-width:980px){.content{border-radius:0;padding:16px}.search{display:none}.top .crumb{display:block}}
+
+/* Conversas simplificada */
+.cx{display:grid;grid-template-columns:300px minmax(0,780px);gap:24px;align-items:start}
+.cxl{display:flex;flex-direction:column;gap:6px;position:sticky;top:80px}
+.drop{border:1.5px dashed #747775;border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;margin-bottom:10px;text-align:center}
+.drop:hover{background:var(--blue-soft);border-color:var(--blue)}
+.drop svg{width:22px;height:22px;color:var(--blue)}
+.drop span{font-size:12px;color:var(--muted)}
+.cxi{display:flex;align-items:center;gap:12px;border:0;background:transparent;border-radius:16px;padding:10px 12px;width:100%}
+.cxi:hover{background:var(--soft)}
+.cxi.on{background:var(--navon)}
+.cxi b{display:block;font-size:14px;font-weight:500}
+.cxi span{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.cxi .sc{margin-left:auto;font-weight:700;font-size:13px;border-radius:999px;padding:3px 10px;flex:none}
+.cxd{display:flex;flex-direction:column;gap:22px}
+.cxh{display:flex;gap:14px;align-items:center}
+.cxh h2{margin:0;font-family:var(--display);font-weight:400;font-size:24px}
+.verdict{border-radius:20px;padding:20px 22px;display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.vnum{font-family:var(--display);font-size:44px;line-height:1}
+.vt{font-family:var(--display);font-size:18px;font-weight:500;margin-bottom:2px}
+.steps{display:flex;gap:4px;align-items:center}
+.steps span{width:18px;height:8px;border-radius:999px;background:var(--line)}
+.steps small{margin-left:6px;font-weight:600;font-size:12px}
+.cxd h4{font-family:var(--display);font-weight:500;font-size:13px;color:var(--muted);margin:0 0 8px;text-transform:uppercase;letter-spacing:.06em}
+.lead{font-size:16px;line-height:1.6;margin:0;max-width:65ch}
+.sigs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sig{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:14px}
+.sig svg{width:18px;height:18px;flex:none;margin-top:2px}
+.sig small{font-size:11px;font-weight:600;display:block}
+.nextbox{border:1px solid var(--line);border-radius:20px;padding:18px 20px;box-shadow:0 1px 3px rgba(60,64,67,.15)}
+.nch{width:42px;height:42px;border-radius:50%;background:var(--blue-soft);color:var(--blue);display:grid;place-items:center}
+details{border-top:1px solid var(--line);padding-top:14px}
+summary{cursor:pointer;font-family:var(--display);font-weight:500;font-size:15px;list-style:none;display:flex;align-items:center;gap:6px}
+summary::before{content:"›";display:inline-block;transition:transform .15s;font-size:20px;line-height:1;color:var(--muted)}
+details[open] summary::before{transform:rotate(90deg)}
+@media (max-width:980px){.cx{grid-template-columns:1fr}.cxl{position:static}.sigs{grid-template-columns:1fr}}
+</style>
+<script>
+var CRM_USER=null;try{CRM_USER=JSON.parse(localStorage.getItem('crmAuth')||sessionStorage.getItem('crmAuth')||'null')}catch(e){}
+if(!CRM_USER&&location.protocol!=='file:')location.replace('index.html');
+function logout(){try{localStorage.removeItem('crmAuth');sessionStorage.removeItem('crmAuth')}catch(e){}location.href='index.html'}
+</script>
+</head>
+<body>
+<div class="app">
+<aside id="side">
+  <div class="brand"><div class="glogo"><span style="background:#4285f4"></span><span style="background:#ea4335"></span><span style="background:#fbbc04"></span><span style="background:#34a853"></span></div><span>CRM <span style="font-weight:400;color:var(--muted)">Vendas</span></span></div>
+  <nav class="nav" id="nav"></nav>
+  <div class="me"><div class="av" id="meav">MP</div><div style="min-width:0;flex:1"><div style="font-weight:600;font-size:13px" id="mename">Maykom Pereira</div><div class="muted" style="font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="memail">Head de Growth</div></div><button class="iconbtn" onclick="logout()" title="Sair" aria-label="Sair"><i data-lucide="log-out"></i></button></div>
+</aside>
+<div class="main">
+  <div class="top">
+    <button class="iconbtn menu-btn" id="mb" aria-label="Abrir menu"><i data-lucide="menu"></i></button>
+    <div class="crumb">CRM Vendas &nbsp;›&nbsp; <b id="crumb">Dashboard</b></div>
+    <div class="sp"></div>
+    <span class="demotag">Demonstração · dados ilustrativos</span>
+    <button class="iconbtn p" aria-label="Novo negócio" onclick="toast('Novo negócio (demonstração)')"><i data-lucide="plus"></i></button>
+    <button class="iconbtn" aria-label="Notificações" onclick="go('prazos')"><i data-lucide="bell"></i><span class="dot">4</span></button>
+    <label class="search"><i data-lucide="search" style="width:15px"></i><input id="q" placeholder="Buscar contato, empresa…"></label>
+  </div>
+  <div class="demo">Modo demonstração · dados ilustrativos</div>
+  <div class="content" id="view"></div>
+</div>
+</div>
+<div class="toast" id="toast"></div>
+<div class="modal" id="modal"><div class="box" id="mbox"></div></div>
+
+<script>
+/* ============ DADOS ============ */
+const STAGES=[
+ {k:'Lead novo',c:'#9aa0a6'},{k:'Qualificação',c:'#8ab4f8'},{k:'Diagnóstico',c:'#4ecde6'},
+ {k:'Proposta enviada',c:'#c58af9'},{k:'Negociação',c:'#f9ab00'},{k:'Ganho',c:'#1e8e3e'}];
+const D=[
+ {id:1,t:'Automação de atendimento',e:'Clínica Vitta',p:'Dra. Renata Alves',tel:'48 99812-3301',v:12000,s:'Negociação',pr:70,sc:86,o:'Meta Ads',la:2,nx:'Enviar contrato revisado',nd:'17/11'},
+ {id:2,t:'GEO + SEO 6 meses',e:'Imobiliária Costa Sul',p:'Felipe Mattos',tel:'48 99620-1187',v:18000,s:'Proposta enviada',pr:50,sc:78,o:'Google Ads',la:5,nx:'Follow-up da proposta',nd:'16/11'},
+ {id:3,t:'Tráfego pago',e:'Pousada Mar Azul',p:'Juliana Reis',tel:'48 99133-0420',v:4500,s:'Diagnóstico',pr:40,sc:64,o:'Indicação',la:1,nx:'Reunião de diagnóstico',nd:'18/11'},
+ {id:4,t:'Site Lovable + LP',e:'Andrade Advocacia',p:'Carlos Andrade',tel:'48 98455-7712',v:7800,s:'Proposta enviada',pr:55,sc:81,o:'LinkedIn',la:9,nx:'Ligar para tirar dúvidas',nd:'16/11'},
+ {id:5,t:'Agente IA no WhatsApp',e:'Rede Farma+',p:'Patrícia Nunes',tel:'48 99701-5523',v:24000,s:'Qualificação',pr:25,sc:72,o:'Evento',la:3,nx:'Mapear decisores',nd:'19/11'},
+ {id:6,t:'Automação de CRM',e:'Construtora Horizonte',p:'Rafael Lima',tel:'48 99940-8812',v:15000,s:'Negociação',pr:65,sc:74,o:'Indicação',la:16,nx:'Reativar: proposta parada',nd:'14/11'},
+ {id:7,t:'Gestão de tráfego',e:'Academia Pulse',p:'Bruno Teixeira',tel:'48 99211-6650',v:3600,s:'Lead novo',pr:10,sc:41,o:'Meta Ads',la:0,nx:'Primeiro contato',nd:'16/11'},
+ {id:8,t:'Consultoria de IA',e:'Grupo Litoral',p:'Mariana Souza',tel:'48 99877-4410',v:32000,s:'Diagnóstico',pr:30,sc:69,o:'Sapiens Park',la:4,nx:'Workshop com diretoria',nd:'20/11'},
+ {id:9,t:'Social + Ads',e:'Café Garopaba',p:'Lucas Prado',tel:'48 99654-0091',v:2800,s:'Lead novo',pr:10,sc:35,o:'Instagram',la:1,nx:'Qualificar orçamento',nd:'17/11'},
+ {id:10,t:'Automação financeira',e:'Contabilidade Prisma',p:'Ana Beatriz Costa',tel:'48 99310-2276',v:9500,s:'Proposta enviada',pr:45,sc:70,o:'Google Ads',la:18,nx:'Proposta vence hoje',nd:'16/11'},
+ {id:11,t:'GEO para hotelaria',e:'Hotel Imbituba Bay',p:'Thiago Martins',tel:'48 99128-3345',v:6200,s:'Qualificação',pr:20,sc:58,o:'Orgânico',la:6,nx:'Enviar case de hotel',nd:'18/11'},
+ {id:12,t:'Funil completo',e:'EdTech Saber+',p:'Camila Rocha',tel:'48 99076-1120',v:21000,s:'Negociação',pr:60,sc:83,o:'LinkedIn',la:1,nx:'Ajustar escopo da fase 1',nd:'17/11'},
+ {id:13,t:'Chatbot de vendas',e:'Ótica Visão',p:'Pedro Alves',tel:'48 99456-2001',v:3200,s:'Ganho',pr:100,sc:90,o:'Meta Ads',la:3,nx:'Onboarding',nd:'—'},
+ {id:14,t:'Tráfego + LP',e:'Studio Pilates Core',p:'Fernanda Lopes',tel:'48 99581-7734',v:5400,s:'Ganho',pr:100,sc:88,o:'Indicação',la:5,nx:'Onboarding',nd:'—'},
+ {id:15,t:'Automação de pós-venda',e:'Auto Peças SC',p:'Jorge Silva',tel:'48 99002-4418',v:4800,s:'Lead novo',pr:10,sc:47,o:'Google Ads',la:2,nx:'Primeiro contato',nd:'16/11'}
+];
+const META_MES=40000;
+const fmt=v=>'R$ '+Math.round(v).toLocaleString('pt-BR');
+const fmtk=v=>'R$ '+(v/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})+'k';
+const open=()=>D.filter(d=>d.s!=='Ganho');
+const won=()=>D.filter(d=>d.s==='Ganho');
+const sum=(a,f)=>a.reduce((s,x)=>s+f(x),0);
+const stageColor=s=>STAGES.find(x=>x.k===s).c;
+/* prioridade: qualificação 40% + probabilidade 30% + tamanho 20% + urgência (dias parado) 10% */
+const prio=d=>Math.round(d.sc*.4+d.pr*.3+Math.min(d.v/32000,1)*100*.2+Math.min(d.la/14,1)*100*.1);
+const temp=sc=>sc>=80?['Quente','r']:sc>=65?['Morno','a']:sc>=50?['Frio','b']:['Gelado','n'];
+const ini=n=>n.replace(/^(Dra?\.)\s/,'').split(' ').map(x=>x[0]).slice(0,2).join('');
+
+/* ============ NAV ============ */
+const PAGES=[
+ ['GERAL'],
+ ['dashboard','Dashboard','layout-dashboard'],
+ ['pipeline','Pipeline','kanban-square'],
+ ['metas','Metas','target'],
+ ['graficos','Gráficos e lógicas','bar-chart-3'],
+ ['COMUNICAÇÃO'],
+ ['emails','E-mails estratégicos','mail',6],
+ ['conversas','Conversas + IA','messages-square'],
+ ['followup','Follow-ups','send',7],
+ ['AGENDA E ROTINA'],
+ ['agenda','Agenda','calendar-days'],
+ ['prazos','Prazos críticos','alarm-clock',4],
+ ['atividades','Atividades','activity'],
+ ['SISTEMA'],
+ ['integracoes','Integrações API','plug']
+];
+function navHTML(cur){return PAGES.map(p=>p.length===1?`<h6>${p[0]}</h6>`:`<a href="#${p[0]}" class="${p[0]===cur?'on':''}"><i data-lucide="${p[2]}"></i>${p[1]}${p[3]?`<span class="cnt ${p[0]==='followup'?'b':''}">${p[3]}</span>`:''}</a>`).join('')}
+
+let charts=[];
+function mk(id,cfg){const el=document.getElementById(id);if(!el||typeof Chart==='undefined')return;charts.push(new Chart(el,cfg))}
+function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim()}
+function chartDefaults(){if(typeof Chart==='undefined')return;Chart.defaults.font.family="Roboto, system-ui, sans-serif";Chart.defaults.font.size=11;Chart.defaults.color=css('--muted');Chart.defaults.borderColor=css('--line');Chart.defaults.plugins.legend.labels.boxWidth=10;Chart.defaults.plugins.legend.labels.usePointStyle=true;Chart.defaults.maintainAspectRatio=false}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2300)}
+function icons(){if(window.lucide)lucide.createIcons()}
+function go(h){location.hash=h}
+function modal(html){document.getElementById('mbox').innerHTML=html;document.getElementById('modal').classList.add('show');icons()}
+function closeModal(){document.getElementById('modal').classList.remove('show')}
+document.getElementById('modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal()});
+document.getElementById('mb').onclick=()=>document.getElementById('side').classList.toggle('open');
+
+/* ============ DASHBOARD ============ */
+const REV=[18200,22400,19100,25300,27800,24100,31200,34900,29400,38100,42300,8600];
+const MESES=['Dez','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov'];
+function pDashboard(){
+ const o=open(),w=won(),wsum=sum(w,d=>d.v),pond=sum(o,d=>d.v*d.pr/100);
+ const stale=o.filter(d=>d.la>14);
+ const close=o.filter(d=>d.s==='Negociação'||d.s==='Proposta enviada').sort((a,b)=>b.v*b.pr-a.v*a.pr);
+ return `
+ <div class="ph"><div><h1>Dashboard</h1><p>Atualizado agora · novembro de 2026</p></div><div class="sp"></div>
+ <select class="sel" id="dperiod" aria-label="Período"><option>Este mês</option><option>Trimestre</option><option>Ano</option></select>
+ <select class="sel" aria-label="Equipe"><option>Toda equipe</option><option>Maykom</option></select>
+ <button class="btn" onclick="toast('Dados sincronizados')"><i data-lucide="refresh-cw"></i></button></div>
+ <div class="kpis">
+  <div class="kpi" style="cursor:pointer" onclick="go('prazos')"><small>Prazos críticos</small><i data-lucide="alert-triangle" class="dn"></i><div class="v dn">4</div><div class="s">vencendo ou vencidos</div></div>
+  <div class="kpi"><small>Vendas ganhas</small><i data-lucide="dollar-sign" class="up"></i><div class="v">${fmt(wsum)}</div><div class="s up">+12% vs mesmo período</div></div>
+  <div class="kpi"><small>Pipeline ponderado</small><i data-lucide="layers" style="color:var(--violet)"></i><div class="v">${fmt(pond)}</div><div class="s">${fmt(sum(o,d=>d.v))} em aberto</div></div>
+  <div class="kpi"><small>Conversão</small><i data-lucide="target" style="color:var(--blue)"></i><div class="v">24%</div><div class="s">lead → cliente, 90 dias</div></div>
+  <div class="kpi"><small>Ticket médio</small><i data-lucide="receipt" style="color:var(--blue)"></i><div class="v">${fmt(11400)}</div><div class="s">por contrato</div></div>
+  <div class="kpi" style="cursor:pointer" onclick="go('followup')"><small>Follow-ups</small><i data-lucide="send" style="color:var(--amber)"></i><div class="v">7</div><div class="s">pendentes hoje</div></div>
+ </div>
+ <div class="grid g21" style="margin-bottom:16px">
+  <div class="card"><h3>Receita mensal (últimos 12 meses)<span class="sp"></span><span class="pill v">tracejado = previsão</span></h3><div class="chartbox"><canvas id="cRev"></canvas></div></div>
+  <div class="card"><h3>Meta do mês</h3><div class="chartbox sm" style="height:180px"><canvas id="cGauge"></canvas></div>
+   <div style="text-align:center;margin-top:-70px;position:relative"><div style="font-size:30px;font-weight:700">${Math.round(wsum/META_MES*100)}%</div><div class="muted" style="font-size:12px">${fmt(wsum)} / ${fmt(META_MES)}</div></div>
+   <div class="note" style="margin-top:22px">Faltam <b>${fmt(META_MES-wsum)}</b>. Com o pipeline ponderado de ${fmt(pond)} a previsão fecha em <b>${Math.round((wsum+pond*.55)/META_MES*100)}%</b> da meta. <a style="color:var(--blue);cursor:pointer" onclick="go('metas')">Ver plano de metas →</a></div></div>
+ </div>
+ <div class="grid g2" style="margin-bottom:16px">
+  <div class="card"><h3>Pipeline por estágio<span class="sp"></span><a onclick="go('pipeline')">Ver pipeline →</a></h3>
+   ${STAGES.map(s=>{const it=D.filter(d=>d.s===s.k),tv=sum(it,d=>d.v);return `<div class="stagebar"><div class="row"><span>${s.k}</span><span class="muted">${it.length} negócios · <b style="color:var(--text)">${fmt(tv)}</b></span></div><div class="track"><span style="width:${Math.max(2,tv/60000*100)}%;background:${s.c}"></span></div></div>`}).join('')}</div>
+  <div class="card"><h3>Atividades por tipo</h3><div class="chartbox"><canvas id="cAct"></canvas></div><div class="note"><b>38%</b> das atividades da semana foram executadas por automações de IA. <a style="color:var(--blue);cursor:pointer" onclick="go('atividades')">Ver histórico →</a></div></div>
+ </div>
+ <div class="grid g2" style="margin-bottom:16px">
+  <div class="card"><h3>Atividades por dia da semana</h3><div class="chartbox sm"><canvas id="cWeek"></canvas></div></div>
+  <div class="card"><h3>Distribuição de lead score<span class="sp"></span><a onclick="go('conversas')">Ver termômetro →</a></h3><div class="chartbox sm"><canvas id="cScore"></canvas></div></div>
+ </div>
+ <div class="grid g2" style="margin-bottom:16px">
+  <div class="card"><h3><i data-lucide="alert-triangle" class="dn"></i>Negócios sem atividade (&gt;14 dias)</h3><div class="list">
+   ${stale.map(d=>`<div class="li warn"><div><div class="t">${d.e} · ${d.t}</div><div class="d">${d.la} dias parado · ${d.s}</div></div><div class="r dn">${fmt(d.v)}</div><button class="btn sm" onclick="go('followup')">Reativar</button></div>`).join('')}</div></div>
+  <div class="card"><h3><i data-lucide="calendar-check" style="color:var(--amber)"></i>Fechamento próximo</h3><div class="list">
+   ${close.slice(0,5).map(d=>`<div class="li"><div><div class="t">${d.e} · ${d.p}</div><div class="d">${d.s} · ${d.pr}% prob · próximo: ${d.nx}</div></div><div class="r">${fmt(d.v)}</div></div>`).join('')}</div></div>
+ </div>
+ <div class="card"><h3><span class="av" style="width:28px;height:28px;background:var(--violet-soft);color:var(--violet)"><i data-lucide="sparkles" style="width:14px"></i></span>Gerente comercial IA<span class="sp"></span><span class="muted" style="font-size:12px;font-weight:400">Análise em tempo real do seu CRM</span></h3>
+  <div class="chips" id="aichips">${['Quais negócios priorizar hoje?','Como está minha conversão?','Quem está esfriando?','Plano de ação para bater a meta'].map(q=>`<button class="chip" onclick="ask(this.textContent)">${q}</button>`).join('')}</div>
+  <div class="chat"><div class="msgs" id="msgs"><div class="msg a">Olá, Maykom. Tenho acesso aos dados do seu CRM. Pergunte sobre pipeline, metas ou follow-ups.</div></div>
+  <form class="row" onsubmit="event.preventDefault();const i=document.getElementById('aiq');if(i.value.trim()){ask(i.value);i.value=''}"><input type="text" id="aiq" placeholder="Pergunte ao gerente IA sobre seu pipeline…"><button class="btn pri"><i data-lucide="send"></i></button></form></div>
+ </div>`;
+}
+function ask(q){
+ const m=document.getElementById('msgs');m.insertAdjacentHTML('beforeend',`<div class="msg u">${q.replace(/</g,'&lt;')}</div>`);
+ const o=open().sort((a,b)=>prio(b)-prio(a));let a;
+ if(/prior/i.test(q))a='Os 3 negócios com maior prioridade hoje:\n'+o.slice(0,3).map((d,i)=>`${i+1}. ${d.e} (${fmt(d.v)}) · ${d.nx}`).join('\n')+'\n\nJuntos somam '+fmt(sum(o.slice(0,3),d=>d.v*d.pr/100))+' ponderados.';
+ else if(/convers/i.test(q))a='Conversão lead → cliente em 90 dias: 24% (meta 25%).\nO maior gargalo está em Proposta → Negociação (55%). Indicação converte 2,1× mais que Meta Ads.';
+ else if(/esfri/i.test(q))a='Esfriando (sem atividade há mais de 7 dias):\n'+open().filter(d=>d.la>7).map(d=>`• ${d.e}: ${d.la} dias, ${fmt(d.v)}`).join('\n')+'\n\nSugestão: mensagem de reativação com prazo, disponível em Follow-ups.';
+ else a=`Faltam ${fmt(META_MES-sum(won(),d=>d.v))} para a meta. Feche Clínica Vitta e EdTech Saber+ (negociação, ${fmt(33000)}) e destrave Construtora Horizonte. Veja a página Metas para o plano completo.`;
+ setTimeout(()=>{m.insertAdjacentHTML('beforeend',`<div class="msg a">${a}</div>`);m.scrollTop=m.scrollHeight},350);m.scrollTop=m.scrollHeight;
+}
+function cDashboard(){
+ const blue=css('--blue');
+ mk('cRev',{type:'line',data:{labels:[...MESES,'Dez*'],datasets:[
+  {label:'Receita',data:[...REV,null],borderColor:blue,backgroundColor:blue+'22',fill:true,tension:.35,pointRadius:2},
+  {label:'Previsão',data:[...Array(10).fill(null),42300,39800,44500],borderColor:'#e8710a',borderDash:[5,4],tension:.35,pointRadius:0},
+  {label:'Meta',data:Array(13).fill(META_MES),borderColor:css('--muted'),borderWidth:1,borderDash:[2,3],pointRadius:0}]},
+  options:{plugins:{legend:{position:'bottom'}},scales:{y:{ticks:{callback:v=>(v/1000)+'k'}},x:{grid:{display:false}}}}});
+ const pct=sum(won(),d=>d.v)/META_MES;
+ mk('cGauge',{type:'doughnut',data:{datasets:[{data:[pct,1-pct],backgroundColor:[blue,css('--soft')],borderWidth:0}]},options:{rotation:-90,circumference:180,cutout:'78%',plugins:{legend:{display:false},tooltip:{enabled:false}}}});
+ mk('cAct',{type:'doughnut',data:{labels:['E-mail','WhatsApp','Ligação','Reunião','Tarefa','IA automática'],datasets:[{data:[34,41,12,9,15,68],backgroundColor:['#1a73e8','#1e8e3e','#f9ab00','#12b5cb','#9aa0a6','#a142f4'],borderWidth:2,borderColor:css('--card')}]},options:{cutout:'62%',plugins:{legend:{position:'right'}}}});
+ mk('cWeek',{type:'bar',data:{labels:['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'],datasets:[{label:'Manuais',data:[1,14,12,15,11,9,2],backgroundColor:blue,borderRadius:4},{label:'IA',data:[6,11,10,12,10,13,6],backgroundColor:'#a142f4',borderRadius:4}]},options:{plugins:{legend:{position:'bottom'}},scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true}}}});
+ const bins=[0,0,0,0,0];D.forEach(d=>bins[Math.min(4,Math.floor(d.sc/20))]++);
+ mk('cScore',{type:'bar',data:{labels:['0–20','21–40','41–60','61–80','81–100'],datasets:[{data:bins,backgroundColor:['#5f6368','#1a73e8','#f9ab00','#e8710a','#d93025'],borderRadius:4}]},options:{plugins:{legend:{display:false}},scales:{x:{grid:{display:false}},y:{ticks:{stepSize:1}}}}});
+}
+
+/* ============ PIPELINE ============ */
+let pView='kanban',pSort={k:'v',dir:-1},pOrigin='Todas';
+function dealCard(d){const [tl,tc]=temp(d.sc);return `<div class="deal" draggable="true" data-id="${d.id}">
+ <div class="t">${d.t}</div><div class="c">${d.e} · ${d.p}</div>
+ <div class="f"><span class="val">${fmt(d.v)}</span><span class="pill ${tc}">${tl} ${d.sc}</span><span class="pill n">${d.pr}%</span></div>
+ <div class="next"><i data-lucide="${d.la>14?'alert-circle':'clock'}" style="color:${d.la>14?'var(--red)':'inherit'}"></i>${d.nx} · ${d.nd}<span style="margin-left:auto">${d.la}d</span></div></div>`}
+function pPipeline(){
+ const origins=['Todas',...new Set(D.map(d=>d.o))];
+ const list=D.filter(d=>pOrigin==='Todas'||d.o===pOrigin);
+ const body=pView==='kanban'?`<div class="kanban">${STAGES.map(s=>{const it=list.filter(d=>d.s===s.k);return `<div class="col" data-stage="${s.k}"><div class="colh"><b>${s.k}</b><span>${it.length} · ${fmtk(sum(it,d=>d.v))}</span></div><div class="bar" style="height:3px;background:${s.c};border-radius:2px;margin:0 4px 10px"></div>${it.map(dealCard).join('')}</div>`}).join('')}</div>`
+ :(()=>{const cols=[['t','Negócio'],['e','Empresa'],['p','Contato'],['s','Estágio'],['v','Valor'],['pr','Prob.'],['sc','Score'],['o','Origem'],['la','Dias parado'],['nx','Próxima ação']];
+  const rows=[...list].sort((a,b)=>(a[pSort.k]>b[pSort.k]?1:-1)*pSort.dir);
+  return `<div class="card tw"><table><thead><tr>${cols.map(c=>`<th onclick="sortP('${c[0]}')">${c[1]}${pSort.k===c[0]?(pSort.dir>0?' ↑':' ↓'):''}</th>`).join('')}</tr></thead><tbody>${rows.map(d=>{const [tl,tc]=temp(d.sc);return `<tr><td><b>${d.t}</b></td><td>${d.e}</td><td>${d.p}</td><td><span class="pill" style="background:${stageColor(d.s)}22;color:${stageColor(d.s)}">${d.s}</span></td><td class="num">${fmt(d.v)}</td><td class="num">${d.pr}%</td><td><span class="pill ${tc}">${d.sc}</span></td><td>${d.o}</td><td class="num ${d.la>14?'dn':''}">${d.la}</td><td>${d.nx}</td></tr>`}).join('')}</tbody></table></div>`})();
+ return `<div class="ph"><div><h1>Pipeline de vendas</h1><p>${list.length} negócios · ${fmt(sum(list.filter(d=>d.s!=='Ganho'),d=>d.v))} em aberto · arraste os cards para mudar de estágio</p></div><div class="sp"></div>
+ <label class="muted" for="porig" style="font-size:12px">Origem</label><select class="sel" id="porig" onchange="pOrigin=this.value;render()">${origins.map(o=>`<option ${o===pOrigin?'selected':''}>${o}</option>`).join('')}</select>
+ <div class="seg"><button class="${pView==='kanban'?'on':''}" onclick="pView='kanban';render()">Kanban</button><button class="${pView==='lista'?'on':''}" onclick="pView='lista';render()">Lista</button></div>
+ <button class="btn pri" onclick="toast('Novo negócio (demonstração)')"><i data-lucide="plus"></i>Negócio</button></div>${body}`;
+}
+function sortP(k){pSort.dir=pSort.k===k?-pSort.dir:-1;pSort.k=k;render()}
+function cPipeline(){
+ document.querySelectorAll('.deal').forEach(c=>c.addEventListener('dragstart',e=>e.dataTransfer.setData('text',c.dataset.id)));
+ document.querySelectorAll('.col').forEach(col=>{
+  col.addEventListener('dragover',e=>{e.preventDefault();col.classList.add('over')});
+  col.addEventListener('dragleave',()=>col.classList.remove('over'));
+  col.addEventListener('drop',e=>{e.preventDefault();const d=D.find(x=>x.id==e.dataTransfer.getData('text'));const ns=col.dataset.stage;if(d&&d.s!==ns){d.s=ns;d.la=0;d.pr=ns==='Ganho'?100:Math.max(d.pr,[10,20,35,50,65,100][STAGES.findIndex(s=>s.k===ns)]);ACTS.unshift({day:'Hoje',h:'agora',ai:false,ty:'move',t:`Negócio movido para ${ns}`,d:`${d.e} · ${d.t}`});render();toast(`${d.e} → ${ns}`)}});
+ });
+}
+
+/* ============ E-MAILS ============ */
+const MAILS=[
+ {f:'Dra. Renata Alves',e:'Clínica Vitta',sub:'Re: Contrato automação de atendimento',p:'Recebi o contrato. Só preciso entender a cláusula de SLA antes de assinar…',h:'09:42',cat:'Respondeu proposta',fold:'q',tag:['r','Quente 86'],body:`Oi Maykom,\n\nRecebi o contrato. Achei tudo dentro do que conversamos, só preciso entender melhor a cláusula 4.2 de SLA: o tempo de resposta do agente vale também aos sábados?\n\nSe estiver ok, consigo assinar ainda esta semana e começar em dezembro.\n\nAbraço,\nRenata`,why:['Contato de negócio em Negociação (R$ 12.000)','Intenção de compra explícita: "consigo assinar ainda esta semana"','Objeção pequena e específica (SLA aos sábados)'],act:'Responder hoje esclarecendo o SLA e propor assinatura digital até quarta.'},
+ {f:'Camila Rocha',e:'EdTech Saber+',sub:'Escopo da fase 1 + datas',p:'Podemos marcar 30 min na terça para fechar a fase 1? O board aprovou o orçamento…',h:'08:15',cat:'Pediu reunião',fold:'r',tag:['r','Quente 83'],body:`Maykom, bom dia!\n\nO board aprovou o orçamento. Podemos marcar 30 min na terça para fechar o escopo da fase 1? Quero incluir a automação de matrícula logo no início.\n\nCamila`,why:['Orçamento aprovado pelo decisor','Pedido de reunião com data','Negócio de R$ 21.000 em Negociação'],act:'Aceitar terça 10h e levar escopo da fase 1 com automação de matrícula.'},
+ {f:'Felipe Mattos',e:'Imobiliária Costa Sul',sub:'Re: Proposta GEO + SEO',p:'Achei o valor acima do que imaginávamos. Tem como parcelar ou reduzir o escopo?',h:'Ontem',cat:'Objeção de preço',fold:'q',tag:['a','Morno 78'],body:`Oi Maykom,\n\nAnalisei a proposta com meu sócio. Gostamos do plano de GEO, mas achamos o valor acima do que imaginávamos para 6 meses.\n\nTem como parcelar ou montar um escopo menor para começar?\n\nFelipe`,why:['Respondeu a proposta (sinal de interesse)','Objeção de preço com abertura para negociar','Sócio envolvido na decisão'],act:'Oferecer escopo de 3 meses com GEO primeiro + parcelamento em 6×. Template "Objeção de preço".'},
+ {f:'Mariana Souza',e:'Grupo Litoral',sub:'Workshop de IA com a diretoria',p:'Confirmo dia 20/11 às 14h no Sapiens Park. Seremos 6 diretores…',h:'Ontem',cat:'Reunião',fold:'r',tag:['a','Morno 69'],body:`Olá Maykom,\n\nConfirmo o workshop no dia 20/11 às 14h no Sapiens Park. Seremos 6 diretores, incluindo o CFO.\n\nPode nos enviar a pauta antes?\n\nMariana`,why:['Reunião confirmada com 6 decisores (inclui CFO)','Maior negócio do pipeline: R$ 32.000'],act:'Enviar pauta até 18/11 e incluir ROI por área para o CFO.'},
+ {f:'Rodrigo Campos',e:'Indicação · Ótica Visão',sub:'Indicação do Pedro (Ótica Visão)',p:'O Pedro me falou do chatbot que vocês fizeram. Tenho 3 lojas e queria algo parecido…',h:'Sex',cat:'Indicação',fold:'q',tag:['b','Novo lead'],body:`Oi Maykom,\n\nO Pedro, da Ótica Visão, me falou do chatbot que vocês fizeram. Tenho 3 lojas em Tubarão e queria algo parecido.\n\nQuando podemos conversar?\n\nRodrigo`,why:['Indicação de cliente ativo (converte 2,1× mais)','Necessidade clara e porte (3 lojas)'],act:'Criar negócio e agendar diagnóstico nesta semana.'},
+ {f:'Ana Beatriz Costa',e:'Contabilidade Prisma',sub:'Re: Proposta automação financeira',p:'Desculpe a demora, fechamento de mês. Ainda tenho interesse, podemos…',h:'Qui',cat:'Aguardando você',fold:'w',tag:['a','Morno 70'],body:`Maykom, desculpe a demora, fechamento de mês por aqui.\n\nAinda tenho interesse. Podemos rever a proposta na semana que vem?\n\nAna`,why:['Lead reaquecido depois de 18 dias','Proposta vence hoje'],act:'Estender validade da proposta por 7 dias e sugerir 2 horários.'}
+];
+const AUTO=[
+ ['Pipedrive','Negócio "Tráfego pago" movido para Diagnóstico'],['Google Ads','Relatório semanal da conta'],['Calendly','Novo evento agendado'],['Meta Business','Sua fatura está disponível'],['n8n','Workflow executado com sucesso'],['RD Station','Newsletter: tendências de marketing'],['Pipedrive','Lembrete: atividade vencida'],['Notion','Você foi mencionado'],['LinkedIn','3 pessoas viram seu perfil']];
+let mFold='q',mSel=0,showAuto=false;
+function pEmails(){
+ const folders=[['all','Todos qualificados','inbox',MAILS.length],['q','Prioritários','star',MAILS.filter(m=>m.fold==='q').length],['r','Reuniões','calendar',MAILS.filter(m=>m.fold==='r').length],['w','Aguardando você','hourglass',MAILS.filter(m=>m.fold==='w').length],['auto','Automáticos ocultos','eye-off',47]];
+ const list=mFold==='auto'?[]:MAILS.filter(m=>mFold==='all'||m.fold===mFold);
+ if(mSel>=list.length)mSel=0;const m=list[mSel];
+ return `<div class="ph"><div><h1>E-mails estratégicos</h1><p>Gmail filtrado pela IA: só mensagens de contatos do CRM com intenção de negócio. Notificações de ferramentas ficam fora.</p></div><div class="sp"></div>
+ <span class="pill g"><i data-lucide="check"></i>Gmail conectado</span><button class="btn" onclick="showAuto=!showAuto;mFold='auto';render()"><i data-lucide="filter"></i>Regras de filtro</button></div>
+ <div class="kpis"><div class="kpi"><small>Recebidos hoje</small><div class="v">53</div><div class="s">caixa completa</div></div><div class="kpi"><small>Qualificados</small><div class="v" style="color:var(--blue)">6</div><div class="s">11% do volume</div></div><div class="kpi"><small>Automáticos ocultos</small><div class="v muted">47</div><div class="s">CRM, ads, newsletters</div></div><div class="kpi"><small>Tempo médio de resposta</small><div class="v">2h14</div><div class="s up">−38 min na semana</div></div></div>
+ <div class="mail"><div class="fold">${folders.map(f=>`<button class="${mFold===f[0]?'on':''}" onclick="mFold='${f[0]}';mSel=0;render()"><i data-lucide="${f[2]}"></i>${f[1]}<span>${f[3]}</span></button>`).join('')}
+  <div class="rules"><b style="color:var(--text)">Regras de qualificação</b><br>✓ remetente é contato ou empresa do CRM<br>✓ intenção: proposta, reunião, preço, indicação<br>✕ no-reply e notificações de ferramentas<br>✕ movimentações automáticas de CRM</div></div>
+ <div class="mlist">${mFold==='auto'?AUTO.map(a=>`<div class="mi auto"><div class="h"><b>${a[0]}</b><span>auto</span></div><div class="p">${a[1]}</div></div>`).join('')+'<div class="mi muted" style="font-size:12px">+ 38 mensagens automáticas. Ficam arquivadas e não entram nas suas prioridades.</div>'
+  :list.map((x,i)=>`<div class="mi ${i===mSel?'on':''}" onclick="mSel=${i};render()"><div class="h"><b>${x.f}</b><span>${x.h}</span></div><div class="s">${x.sub}</div><div class="p">${x.p}</div><div class="row" style="margin-top:6px;gap:5px"><span class="pill ${x.tag[0]}">${x.tag[1]}</span><span class="pill n">${x.cat}</span></div></div>`).join('')}</div>
+ <div class="mread">${m&&mFold!=='auto'?`<h2>${m.sub}</h2><div class="row"><div class="av">${ini(m.f)}</div><div><b>${m.f}</b><div class="muted" style="font-size:12px">${m.e} · ${m.h}</div></div><span class="sp" style="flex:1"></span><span class="pill ${m.tag[0]}">${m.tag[1]}</span></div>
+  <div class="mbody">${m.body}</div>
+  <div class="ai"><h4><i data-lucide="sparkles"></i>Por que a IA marcou como estratégico</h4><ul>${m.why.map(w=>`<li>${w}</li>`).join('')}</ul><h4 style="margin-top:10px"><i data-lucide="arrow-right-circle"></i>Próxima ação sugerida</h4>${m.act}</div>
+  <div class="row" style="margin-top:14px;flex-wrap:wrap"><button class="btn pri" onclick="go('followup')"><i data-lucide="reply"></i>Responder com template</button><button class="btn" onclick="toast('Convite criado no Google Agenda (demo)')"><i data-lucide="calendar-plus"></i>Agendar reunião</button><button class="btn" onclick="go('pipeline')"><i data-lucide="briefcase"></i>Abrir negócio</button></div>`
+  :`<div class="muted" style="padding:30px;text-align:center"><i data-lucide="eye-off"></i><p>Mensagens automáticas ficam fora da sua caixa estratégica.<br>Você pode revisá-las aqui quando quiser.</p></div>`}</div></div>`;
+}
+
+/* ============ AGENDA ============ */
+const EVENTS=[
+ {s:8.5,e:9,t:'Revisão do dia com IA',k:'Rotina',c:'#a142f4',prep:['7 follow-ups pendentes','Proposta Contabilidade Prisma vence hoje','2 e-mails estratégicos sem resposta']},
+ {s:9.5,e:10.5,t:'Reunião · EdTech Saber+ (fase 1)',k:'Reunião',c:'#1a73e8',d:12,prep:['Board aprovou orçamento de R$ 21.000','Incluir automação de matrícula na fase 1','Objetivo: assinatura até 22/11']},
+ {s:11,e:11.5,t:'Ligação · Andrade Advocacia',k:'Ligação',c:'#f9ab00',d:4,prep:['Proposta parada há 9 dias','Dúvida provável: prazo de entrega do site','Oferecer call de 15 min com portfólio']},
+ {s:14,e:15,t:'Diagnóstico · Pousada Mar Azul',k:'Reunião',c:'#1a73e8',d:3,prep:['Sazonalidade: alta de dez a mar','Verba atual R$ 1.500/mês em boost','Perguntar meta de ocupação']},
+ {s:15.5,e:16,t:'Bloco de follow-ups (WhatsApp)',k:'Foco',c:'#1e8e3e',prep:['Usar templates de 1 clique','Prioridade: Horizonte, Prisma, Costa Sul']},
+ {s:16.5,e:17.5,t:'Otimização de campanhas · tráfego',k:'Tráfego',c:'#12b5cb',prep:['CPL subiu 14% em Meta Ads','Testar 2 criativos novos para Black Friday']}
+];
+let agView='dia',evSel=1;
+function forecast(day){const dow=new Date(2026,10,day).getDay();const base=[3,14,13,12,11,9,4][dow];let f=1;if(day>=24&&day<=30)f=1.35;if(day>=20&&day<=21)f=.85;const n=((day*37)%7-3)*.6;return Math.max(1,Math.round(base*f+n))}
+function pAgenda(){
+ let body;
+ if(agView==='dia'){const ev=EVENTS[evSel];
+  body=`<div class="grid g21"><div class="card"><h3>Segunda, 16 de novembro<span class="sp"></span><span class="pill b">${EVENTS.length} compromissos</span><span class="pill v">previsão: ${forecast(16)} leads hoje</span></h3>
+  <div class="day"><div>${[8,9,10,11,12,13,14,15,16,17,18].map(h=>`<div class="hr">${h}:00</div>`).join('')}</div>
+  <div class="slots">${[8,9,10,11,12,13,14,15,16,17,18].map(()=>`<div class="hr"></div>`).join('')}
+  ${EVENTS.map((e,i)=>`<div class="ev ${i===evSel?'on':''}" onclick="evSel=${i};render()" style="top:${(e.s-8)*58+2}px;height:${(e.e-e.s)*58-4}px;background:${e.c}18;border-color:${e.c}"><b>${e.t}</b>${fh(e.s)}–${fh(e.e)} · ${e.k}</div>`).join('')}
+  <div style="position:absolute;left:0;right:0;top:${(10.75-8)*58}px;border-top:2px solid var(--red)"></div></div></div></div>
+  <div class="grid" style="align-content:start"><div class="card"><h3><i data-lucide="sparkles" style="color:var(--violet)"></i>Preparação pela IA</h3><b>${ev.t}</b><div class="muted" style="font-size:12px;margin-bottom:8px">${fh(ev.s)}–${fh(ev.e)}</div><ul style="margin:0;padding-left:18px;font-size:13px">${ev.prep.map(p=>`<li>${p}</li>`).join('')}</ul>
+   ${ev.d?`<div class="row" style="margin-top:12px"><button class="btn sm" onclick="go('conversas')">Ver última conversa</button><button class="btn sm" onclick="go('followup')">Mensagem de confirmação</button></div>`:''}</div>
+   <div class="card"><h3>Hoje no funil</h3><div class="list"><div class="li"><i data-lucide="user-plus" style="color:var(--blue)"></i><div><div class="t">Leads previstos</div><div class="d">base: segundas das últimas 8 semanas</div></div><div class="r">${forecast(16)}</div></div><div class="li"><i data-lucide="send"></i><div><div class="t">Follow-ups</div><div class="d">3 atrasados</div></div><div class="r">7</div></div><div class="li"><i data-lucide="alarm-clock" class="dn"></i><div><div class="t">Prazos críticos</div><div class="d">1 proposta vence hoje</div></div><div class="r dn">4</div></div></div></div></div></div>`;
+ }else{
+  const first=new Date(2026,10,1).getDay();const cells=[];for(let i=0;i<first;i++)cells.push(null);for(let d=1;d<=30;d++)cells.push(d);while(cells.length%7)cells.push(null);
+  const meets={3:2,4:1,5:3,6:1,10:2,11:2,12:1,13:3,14:1,16:3,17:2,18:2,19:1,20:2,23:1,24:2,25:1,26:2,27:1};
+  const tot=sum(cells.filter(Boolean),forecast);
+  body=`<div class="kpis"><div class="kpi"><small>Leads previstos no mês</small><div class="v">${tot}</div><div class="s">±9% de margem</div></div><div class="kpi"><small>Realizado até 15/11</small><div class="v">${sum([...Array(15).keys()].map(i=>i+1),forecast)}</div><div class="s up">+6% vs previsão</div></div><div class="kpi"><small>Reuniões previstas</small><div class="v">${Math.round(tot*.3)}</div><div class="s">30% de lead → reunião</div></div><div class="kpi"><small>Receita prevista</small><div class="v">${fmt(Math.round(tot*.3*.6*.35*11400))}</div><div class="s">pelo funil histórico</div></div></div>
+  <div class="grid g21"><div class="card"><h3>Novembro de 2026<span class="sp"></span><span class="heat">menos <span style="background:#e8f0fe"></span><span style="background:#8ab4f8"></span><span style="background:#1a73e8"></span><span style="background:#174ea6"></span> mais leads</span></h3>
+   <div class="cal">${['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map(w=>`<div class="wd">${w}</div>`).join('')}
+   ${cells.map(d=>{if(!d)return '<div class="cd out"></div>';const f=forecast(d),past=d<16;const bg=f>=15?'#174ea6':f>=12?'#1a73e8':f>=8?'#8ab4f8':'#e8f0fe';const fg=f>=12?'#fff':'#174ea6';
+    return `<div class="cd ${d===16?'today':''}"><div class="n">${d}${d>=24&&d<=30?'<span class="pill r" style="font-size:9.5px">Black Friday</span>':''}</div><div class="fc" style="background:${bg};color:${fg}">${past?'':'~'}${f} leads ${past?'reais':'prev.'}</div>${meets[d]?`<div class="mt">● ${meets[d]} reuniõe${meets[d]>1?'s':''}</div>`:''}</div>`}).join('')}</div></div>
+   <div class="grid" style="align-content:start"><div class="card"><h3>Histórico semanal × previsão</h3><div class="chartbox sm"><canvas id="cFc"></canvas></div></div>
+   <div class="card"><h3><i data-lucide="function-square" style="color:var(--violet)"></i>Como a previsão é calculada</h3><div class="formula">leads(dia) = média(mesmo dia da semana, 8 sem.)<br>× sazonalidade do mês (12 meses)<br>× fator de campanha (ex.: Black Friday 1,35)<br>× investimento planejado ÷ investimento médio</div><div class="note">Fonte: gestão de tráfego (Meta Ads + Google Ads + GA4). Dias com previsão alta pedem mais blocos de follow-up na agenda.</div></div></div></div>`;
+ }
+ return `<div class="ph"><div><h1>Agenda</h1><p>Google Agenda sincronizado · previsões a partir do histórico de tráfego</p></div><div class="sp"></div><div class="seg"><button class="${agView==='dia'?'on':''}" onclick="agView='dia';render()">Dia</button><button class="${agView==='mes'?'on':''}" onclick="agView='mes';render()">Mês com previsões</button></div><button class="btn pri" onclick="toast('Evento criado (demo)')"><i data-lucide="plus"></i>Evento</button></div>${body}`;
+}
+function fh(x){return Math.floor(x)+':'+(x%1?'30':'00')}
+function cAgenda(){if(agView!=='mes')return;
+ mk('cFc',{type:'line',data:{labels:['S1 out','S2','S3','S4','S1 nov','S2','S3','S4','S5'],datasets:[{label:'Real',data:[61,58,66,63,64,70,null,null,null],borderColor:css('--blue'),backgroundColor:css('--blue')+'22',fill:true,tension:.3},{label:'Previsão',data:[null,null,null,null,null,70,66,82,79],borderColor:'#e8710a',borderDash:[5,4],tension:.3}]},options:{plugins:{legend:{position:'bottom'}},scales:{x:{grid:{display:false}}}}})}
+
+/* ============ CONVERSAS ============ */
+const CONVS=[
+ {id:12,n:'Camila Rocha',e:'EdTech Saber+',type:'Reunião Google Meet',dur:'42 min',when:'Ontem, 15h',ic:'video',
+  tr:[['00:02','Maykom','Camila, obrigado pelo tempo. Quero entender onde a matrícula trava hoje.'],['01:15','Camila','A gente perde muito lead entre o formulário e o primeiro contato. <mark>Uns 40% nem recebem resposta no mesmo dia.</mark>'],['04:30','Maykom','E quem decide o investimento em automação?'],['04:41','Camila','Eu levo pro board, mas <mark>o orçamento já está aprovado para o primeiro trimestre.</mark>'],['12:08','Camila','O que me preocupa é integrar com o sistema acadêmico.'],['12:30','Maykom','Temos conector via API. Na fase 1 faço a ponte com n8n.'],['31:50','Camila','Se a fase 1 começar em dezembro, <mark>consigo assinar até dia 22.</mark>'],['40:12','Maykom','Fechado. Te mando o escopo ajustado amanhã.']],
+  sum:'Board aprovou orçamento. A dor é a perda de 40% dos leads de matrícula por demora no primeiro contato. Única objeção técnica: integração com o sistema acadêmico, endereçada com n8n na fase 1.',
+  ins:['Dor quantificada: 40% dos leads sem resposta no mesmo dia','Decisora com orçamento aprovado (Budget + Authority confirmados)','Prazo concreto: assinatura até 22/11','Risco: integração acadêmica. Levar exemplo funcionando'],
+  bant:[['Orçamento',95],['Autoridade',85],['Necessidade',90],['Prazo',88],['Fit com serviço',80]],
+  worth:['Sim, prioridade máxima','g',92,'Alto valor (R$ 21.000), decisora engajada e prazo curto. Cada hora investida aqui vale cerca de R$ 1.300 ponderados.'],
+  cad:[['Hoje','E-mail','Escopo da fase 1 com automação de matrícula'],['D+1','WhatsApp','Confirmar recebimento e oferecer 15 min para dúvidas'],['D+3','Ligação','Demo da integração via n8n'],['D+5','E-mail','Contrato para assinatura digital']]},
+ {id:6,n:'Rafael Lima',e:'Construtora Horizonte',type:'Áudio WhatsApp',dur:'3 min',when:'31/10',ic:'mic',
+  tr:[['00:00','Rafael','Maykom, tudo bem? Olha, a proposta tá boa, mas <mark>o diretor pediu pra segurar até o fechamento do trimestre.</mark>'],['00:48','Rafael','Eu continuo querendo, viu? A equipe comercial tá perdendo muito tempo com planilha.'],['01:30','Rafael','<mark>Talvez em dezembro a gente consiga</mark>, mas não prometo.'],['02:40','Rafael','Me manda alguma coisa que eu possa mostrar pra ele com números.']],
+  sum:'O campeão (Rafael) quer seguir, mas o diretor congelou a decisão até o fim do trimestre. Pediu material com números para convencer o diretor.',
+  ins:['Campeão interno ativo, decisor ainda não acessado','Gatilho de retomada: fechamento do trimestre (dezembro)','Pedido explícito: estudo de ROI com números','16 dias sem atividade, risco de esfriar'],
+  bant:[['Orçamento',45],['Autoridade',35],['Necessidade',80],['Prazo',40],['Fit com serviço',85]],
+  worth:['Moderado: investir pouco e certeiro','a',58,'Vale 1 ação de alto impacto (ROI de 1 página para o diretor) e depois cadência leve até dezembro. Não vale reunião agora.'],
+  cad:[['Hoje','WhatsApp','Reativar: "preparei o ROI que você pediu"'],['D+2','E-mail','ROI de 1 página endereçado ao diretor'],['D+10','WhatsApp','Case de construtora parecida'],['01/12','Ligação','Retomar com o fechamento do trimestre']]},
+ {id:2,n:'Felipe Mattos',e:'Imobiliária Costa Sul',type:'Ligação gravada',dur:'18 min',when:'12/11',ic:'phone',
+  tr:[['00:10','Felipe','Vi a proposta. GEO eu nunca tinha ouvido falar, mas faz sentido.'],['03:22','Felipe','Hoje <mark>70% dos clientes vêm do Zap Imóveis</mark> e a gente paga caro por isso.'],['07:05','Maykom','A ideia é aparecer quando alguém pergunta ao ChatGPT por imobiliária em Imbituba.'],['11:40','Felipe','<mark>O valor ficou acima do que pensei.</mark> Preciso ver com meu sócio.'],['16:20','Felipe','Se tiver uma versão menor pra testar, fica mais fácil.']],
+  sum:'Interesse real em reduzir dependência de portais (70% dos leads). Objeção de preço e decisão compartilhada com o sócio. Abertura para escopo menor.',
+  ins:['Dor: dependência de portal pago (70% dos leads)','Objeção de preço com abertura: "versão menor para testar"','Sócio participa da decisão e ainda não foi envolvido','Oportunidade: piloto de 3 meses e upsell depois'],
+  bant:[['Orçamento',50],['Autoridade',55],['Necessidade',85],['Prazo',60],['Fit com serviço',90]],
+  worth:['Sim, com escopo reduzido','b',74,'Piloto de 3 meses tem alta chance de fechar e abre upsell para o plano de 6 meses.'],
+  cad:[['Hoje','E-mail','Proposta piloto de 3 meses (GEO primeiro)'],['D+2','WhatsApp','Sugerir call de 20 min com o sócio'],['D+6','E-mail','Mini diagnóstico: como a imobiliária aparece hoje no ChatGPT'],['D+12','Ligação','Decisão']]}
+];
+let cSel=0;
+const SIG={
+ 12:[['buy','Orçamento aprovado pelo board'],['buy','Quer assinar até 22/11'],['pain','Perde 40% dos leads por demora no 1º contato'],['obj','Preocupação: integrar com o sistema acadêmico']],
+ 6:[['pain','Equipe comercial perde tempo com planilha'],['obj','Diretor pediu para segurar até fechar o trimestre'],['buy','Pediu material com números para convencer o diretor'],['risk','16 dias sem contato']],
+ 2:[['pain','70% dos clientes vêm de portal pago'],['obj','Achou o valor alto'],['buy','Aceita uma versão menor para testar'],['risk','Sócio ainda não participou']]
+};
+const SIGI={buy:['check-circle-2','var(--green)','Sinal de compra'],pain:['target','var(--blue)','Dor'],obj:['alert-circle','var(--amber)','Objeção'],risk:['alert-triangle','var(--red)','Risco']};
+function pConversas(){
+ const c=CONVS[cSel],d=D.find(x=>x.id===c.id);
+ const lv=d.sc>=80?4:d.sc>=65?3:d.sc>=50?2:1;const tn=['Gelado','Frio','Morno','Quente'];
+ const col=({g:'green',a:'amber',b:'blue'})[c.worth[1]];
+ const nx=c.cad[0];
+ return `<div class="ph"><div><h1>Conversas</h1><p>Anexe uma conversa e a IA diz o que importa e o que fazer agora</p></div></div>
+ <div class="cx">
+  <div class="cxl">
+   <label class="drop" for="up"><i data-lucide="upload-cloud"></i><b>Anexar conversa</b><span>áudio, ligação ou gravação do Meet</span></label>
+   <input type="file" id="up" accept="audio/*,video/*,.txt" style="display:none" onchange="toast('Recebido: '+this.files[0].name+' · transcrevendo (demo)')">
+   ${CONVS.map((x,i)=>{const dd=D.find(y=>y.id===x.id),cc=({g:'green',a:'amber',b:'blue'})[x.worth[1]];return `<button class="cxi ${i===cSel?'on':''}" onclick="cSel=${i};render()">
+    <div class="av">${ini(x.n)}</div><div style="min-width:0;text-align:left"><b>${x.n}</b><span>${x.e} · ${x.when}</span></div>
+    <span class="sc" style="color:var(--${cc});background:var(--${cc}-soft)">${x.worth[2]}</span></button>`}).join('')}
+  </div>
+  <div class="cxd">
+   <div class="cxh"><div class="av" style="width:44px;height:44px;font-size:15px">${ini(c.n)}</div><div><h2>${c.n}</h2><span class="muted">${c.e} · ${c.type}, ${c.dur} · ${c.when}</span></div><span class="sp" style="flex:1"></span><b style="font-size:16px">${fmt(d.v)}</b></div>
+
+   <div class="verdict" style="background:var(--${col}-soft)">
+    <div class="vnum" style="color:var(--${col})">${c.worth[2]}</div>
+    <div style="flex:1"><div class="vt">${c.worth[0]}</div><div class="muted" style="font-size:13px">${c.worth[3]}</div></div>
+    <div class="steps" aria-label="Temperatura: ${tn[lv-1]}">${tn.map((t,i)=>`<span class="${i<lv?'on':''}" style="${i<lv?`background:${['#8ab4f8','#fbbc04','#e8710a','#d93025'][i]}`:''}"></span>`).join('')}<small>${tn[lv-1]}</small></div>
+   </div>
+
+   <section><h4>Resumo</h4><p class="lead">${c.sum}</p></section>
+
+   <section><h4>O que importa</h4><div class="sigs">${SIG[c.id].map(sg=>{const k=SIGI[sg[0]];return `<div class="sig"><i data-lucide="${k[0]}" style="color:${k[1]}"></i><div><small style="color:${k[1]}">${k[2]}</small><div>${sg[1]}</div></div></div>`}).join('')}</div></section>
+
+   <section class="nextbox"><h4>Próximo passo</h4>
+    <div class="row" style="gap:14px;flex-wrap:wrap"><span class="nch"><i data-lucide="${nx[1]==='WhatsApp'?'message-circle':nx[1]==='E-mail'?'mail':'phone'}"></i></span><div style="flex:1;min-width:200px"><b>${nx[2]}</b><div class="muted" style="font-size:12.5px">${nx[0]} · ${nx[1]}</div></div>
+    <button class="btn pri" onclick="fuSel=${c.id};fuCh='${nx[1]==='WhatsApp'?'wa':'email'}';go('followup')"><i data-lucide="send"></i>Fazer agora</button></div>
+   </section>
+
+   <details><summary>Cadência sugerida <span class="muted">· ${c.cad.length} passos</span></summary><div class="cad" style="margin-top:12px">${c.cad.map(st=>`<div class="cs"><b>${st[0]} · ${st[1]}</b><span class="muted">${st[2]}</span></div>`).join('')}</div>
+    <button class="btn" onclick="toast('Cadência ativada (demo)')"><i data-lucide="play-circle"></i>Ativar cadência</button></details>
+   <details><summary>Critérios de qualificação</summary><div style="margin-top:10px">${c.bant.map(b=>`<div class="fac"><span>${b[0]}</span><div class="track"><span style="width:${b[1]}%;background:${b[1]>=75?'var(--green)':b[1]>=50?'var(--amber)':'var(--red)'}"></span></div><b class="num">${b[1]}</b></div>`).join('')}</div></details>
+   <details><summary>Transcrição completa <span class="muted">· ${c.tr.length} trechos</span></summary><div class="tr" style="margin-top:12px">${c.tr.map(l=>`<div class="tl"><time>${l[0]}</time><div><b style="color:${l[1]==='Maykom'?'var(--blue)':'var(--text)'}">${l[1]}</b><div>${l[2]}</div></div></div>`).join('')}</div></details>
+  </div>
+ </div>`;
+}
+
+/* ============ FOLLOW-UP ============ */
+const TPL=[
+ {k:'Pós-reunião',ch:'both',t:'Oi {nome}! Obrigado pela conversa de hoje. Como combinamos, segue o resumo e os próximos passos para a {empresa}. Fico à disposição para qualquer dúvida.'},
+ {k:'Proposta sem resposta',ch:'both',t:'Oi {nome}, tudo bem? Passando para saber se conseguiu avaliar a proposta de {negocio}. Se ajudar, faço uma call rápida de 15 min para tirar dúvidas.'},
+ {k:'Reativação',ch:'both',t:'{nome}, faz um tempinho que não conversamos! Preparei um material com números que pode ajudar na decisão sobre {negocio}. Posso te enviar?'},
+ {k:'Objeção de preço',ch:'both',t:'{nome}, entendo o ponto do investimento. Montei uma alternativa: começamos com um piloto de 3 meses focado no que traz resultado mais rápido, com parcelamento. Faz sentido para a {empresa}?'},
+ {k:'Confirmar reunião',ch:'wa',t:'Oi {nome}! Confirmando nosso encontro amanhã. Continua de pé? Se precisar remarcar, me avisa por aqui.'},
+ {k:'Proposta vencendo',ch:'both',t:'{nome}, a proposta de {negocio} vence hoje. Consigo estender por mais 7 dias. Quer que eu faça isso?'},
+ {k:'Pedir indicação',ch:'both',t:'{nome}, que bom ver os resultados da {empresa}! Conhece alguém que também poderia se beneficiar? Indicações ganham 1 mês de bônus.'}
+];
+let fuSel=null,fuCh='wa',fuTpl=1,fuTab='todos',sent=new Set();
+function fill(t,d){return t.replace(/{nome}/g,d.p.replace(/^Dra?\.\s/,'').split(' ')[0]).replace(/{empresa}/g,d.e).replace(/{negocio}/g,d.t.toLowerCase())}
+function sugTpl(d){return d.la>14?2:d.nx.includes('vence')?5:d.s==='Proposta enviada'?1:d.s==='Diagnóstico'?4:0}
+function pFollowup(){
+ let list=[...open()].sort((a,b)=>prio(b)-prio(a));
+ if(fuTab==='atrasados')list=list.filter(d=>d.la>7);if(fuTab==='hoje')list=list.filter(d=>d.nd==='16/11');
+ if(fuSel===null||!D.find(x=>x.id===fuSel))fuSel=list[0]?.id;const d=D.find(x=>x.id===fuSel);
+ const txt=d?fill(TPL[fuTpl].t,d):'';
+ return `<div class="ph"><div><h1>Follow-ups</h1><p>Lista ordenada pelo índice de prioridade · envio em um clique por WhatsApp ou e-mail</p></div><div class="sp"></div><div class="seg">${[['todos','Todos'],['hoje','Hoje'],['atrasados','Atrasados']].map(t=>`<button class="${fuTab===t[0]?'on':''}" onclick="fuTab='${t[0]}';fuSel=null;render()">${t[1]}</button>`).join('')}</div></div>
+ <div class="fu"><div class="card"><h3>Prioridades<span class="sp"></span><span class="muted" style="font-weight:400;font-size:12px">prioridade = score 40% + prob. 30% + valor 20% + dias parado 10%</span></h3><div class="list">
+ ${list.map((x,i)=>{const [tl,tc]=temp(x.sc),st=sugTpl(x);return `<div class="li" style="cursor:pointer;${x.id===fuSel?'border-color:var(--blue);box-shadow:0 0 0 1px var(--blue)':''}" onclick="fuSel=${x.id};fuTpl=${st};render()">
+  <span class="prio" style="background:${i<3?'var(--red-soft)':'var(--soft)'};color:${i<3?'var(--red)':'var(--muted)'}">${i+1}</span>
+  <div style="min-width:0"><div class="t">${x.p} · ${x.e}</div><div class="d">${x.nx} · ${x.la} dias sem contato · sugestão: <b>${TPL[st].k}</b></div></div>
+  <div class="r" style="display:flex;gap:6px;align-items:center"><span class="pill ${tc}">${tl}</span>${sent.has(x.id)?'<span class="pill g"><i data-lucide="check"></i>enviado</span>':`<button class="btn sm wa" onclick="event.stopPropagation();quick(${x.id},${st})" title="Enviar mensagem sugerida"><i data-lucide="zap"></i>1 clique</button>`}</div></div>`}).join('')||'<div class="muted">Nada pendente aqui.</div>'}</div></div>
+ <div class="grid" style="align-content:start">${d?`<div class="card"><h3>${d.p} · ${d.e}</h3>
+  <div class="seg" style="margin-bottom:12px"><button class="${fuCh==='wa'?'on':''}" onclick="fuCh='wa';render()"><i data-lucide="message-circle" style="width:14px"></i> WhatsApp</button><button class="${fuCh==='email'?'on':''}" onclick="fuCh='email';render()"><i data-lucide="mail" style="width:14px"></i> E-mail</button></div>
+  <div class="muted" style="font-size:12px;margin-bottom:6px">Mensagens frequentes</div>
+  <div class="chips" style="margin-bottom:12px">${TPL.map((t,i)=>t.ch==='wa'&&fuCh==='email'?'':`<button class="chip ${i===fuTpl?'on':''}" onclick="fuTpl=${i};render()">${t.k}</button>`).join('')}</div>
+  ${fuCh==='email'?`<input type="text" id="fsub" value="${TPL[fuTpl].k}: ${d.t}" style="margin-bottom:8px" aria-label="Assunto">`:''}
+  <textarea id="ftxt" aria-label="Mensagem" oninput="document.getElementById('bub')&&(document.getElementById('bub').textContent=this.value)">${txt}</textarea>
+  ${fuCh==='wa'?`<div class="wa-preview"><div class="bubble" id="bub">${txt}</div></div>`:''}
+  <div class="row" style="margin-top:12px;flex-wrap:wrap">
+   ${fuCh==='wa'?`<a class="btn wa" target="_blank" rel="noopener" href="https://wa.me/55${d.tel.replace(/\D/g,'')}?text=${encodeURIComponent(txt)}" onclick="sent.add(${d.id});setTimeout(render,300)"><i data-lucide="send"></i>Abrir no WhatsApp</a>`:`<button class="btn pri" onclick="sent.add(${d.id});render();toast('E-mail enviado pelo Gmail (simulado)')"><i data-lucide="send"></i>Enviar pelo Gmail</button>`}
+   <button class="btn" onclick="cp()"><i data-lucide="copy"></i>Copiar</button><button class="btn" onclick="toast('Agendado para amanhã 9h (demo)')"><i data-lucide="clock"></i>Agendar</button></div>
+  <div class="muted" style="font-size:11.5px;margin-top:8px">${fuCh==='wa'?d.tel:''} · variáveis {nome} {empresa} {negocio} preenchidas do CRM</div></div>`:''}
+  <div class="card"><h3>Desempenho dos templates</h3><table><thead><tr><th>Template</th><th class="num">Resposta</th><th class="num">Usos</th></tr></thead><tbody>${[['Objeção de preço',58,22],['Proposta sem resposta',44,61],['Reativação',31,38],['Confirmar reunião',87,74],['Proposta vencendo',52,19]].map(r=>`<tr><td>${r[0]}</td><td class="num"><b>${r[1]}%</b></td><td class="num">${r[2]}</td></tr>`).join('')}</tbody></table></div></div></div>`;
+}
+function quick(id,t){const d=D.find(x=>x.id===id);sent.add(id);d.la=0;ACTS.unshift({day:'Hoje',h:'agora',ai:false,ty:'wa',t:`WhatsApp enviado: ${TPL[t].k}`,d:`${d.p} · ${d.e}`});render();toast(`"${TPL[t].k}" enviado para ${d.p} (simulado)`)}
+function cp(){const v=document.getElementById('ftxt').value;navigator.clipboard?.writeText(v).then(()=>toast('Mensagem copiada'),()=>toast('Selecione o texto e copie'))}
+
+/* ============ METAS ============ */
+let G={meta:8000,r1:30,r2:60,r3:35,tk:6500};let gPick=null;
+function pMetas(){
+ const ws=sum(won(),d=>d.v);
+ return `<div class="ph"><div><h1>Metas</h1><p>Defina quanto quer faturar a mais e veja quais contatos e quantos leads levam até lá</p></div></div>
+ <div class="card" style="margin-bottom:16px"><div class="goalin"><span style="font-weight:600">Quero faturar a mais</span><label class="sr" for="gmeta" style="display:none">Meta</label>
+  <span style="font-size:20px;font-weight:700">+R$</span><input class="big" type="number" id="gmeta" value="${G.meta}" step="500" oninput="G.meta=+this.value||0;gPick=null;upd()">
+  <span class="muted">até 30/11</span><span style="flex:1"></span>${[8000,15000,25000,40000].map(v=>`<button class="chip ${G.meta===v?'on':''}" onclick="G.meta=${v};gPick=null;render()">+${fmtk(v)}</button>`).join('')}</div></div>
+ <div id="gout"></div>
+ <div class="card" style="margin-top:16px"><h3>Progresso da meta mensal (${fmt(META_MES)})</h3><div class="prog"><span style="width:${ws/META_MES*100}%"></span></div><div class="row muted" style="font-size:12px;margin-top:6px"><span>Ganho ${fmt(ws)}</span><span style="margin-left:auto">Faltam ${fmt(META_MES-ws)}</span></div></div>`;
+}
+function upd(){
+ const el=document.getElementById('gout');if(!el)return;
+ const cand=[...open()].sort((a,b)=>b.v*b.pr-a.v*a.pr);
+ if(!gPick){gPick=new Set();let acc=0;for(const d of cand){if(acc>=G.meta)break;gPick.add(d.id);acc+=d.v*d.pr/100}}
+ const picked=cand.filter(d=>gPick.has(d.id)),pond=sum(picked,d=>d.v*d.pr/100),bruto=sum(picked,d=>d.v);
+ const gap=Math.max(0,G.meta-pond);
+ const deals=Math.ceil(G.meta/G.tk),props=Math.ceil(deals/(G.r3/100)),reun=Math.ceil(props/(G.r2/100)),leads=Math.ceil(reun/(G.r1/100));
+ const gapLeads=Math.ceil(Math.ceil(gap/G.tk)/(G.r3/100)/(G.r2/100)/(G.r1/100));
+ el.innerHTML=`<div class="grid g2"><div class="card"><h3><i data-lucide="users"></i>Contatos que levam a +${fmt(G.meta)}<span class="sp"></span><span class="pill ${pond>=G.meta?'g':'a'}">${pond>=G.meta?'meta coberta':'faltam '+fmt(gap)}</span></h3>
+  <div class="note" style="margin:0 0 12px">A IA escolhe os negócios com maior <b>valor esperado</b> (valor × probabilidade) até cobrir a meta. Marque ou desmarque para simular.</div>
+  <div class="list">${cand.map(d=>{const on=gPick.has(d.id);return `<label class="li" style="cursor:pointer;${on?'border-color:var(--green);background:var(--green-soft)':''}"><input type="checkbox" ${on?'checked':''} onchange="tog(${d.id})"><div><div class="t">${d.p} · ${d.e}</div><div class="d">${d.s} · ${d.pr}% · ${d.nx}</div></div><div class="r">${fmt(d.v*d.pr/100)}<div class="muted" style="font-size:11px;font-weight:400">de ${fmt(d.v)}</div></div></label>`}).join('')}</div>
+  <div class="note"><b>${picked.length} contatos</b> · ${fmt(bruto)} brutos · <b>${fmt(pond)} ponderados</b>${gap>0?` · precisa de mais <b>${gapLeads} leads novos</b> para cobrir a diferença`:''}</div></div>
+ <div class="grid" style="align-content:start"><div class="card"><h3><i data-lucide="filter"></i>Funil reverso para +${fmt(G.meta)} só com leads novos</h3>
+  <div class="funnelrev">${[[leads,'leads','#1a73e8',100],[reun,'reuniões','#12b5cb',82],[props,'propostas','#a142f4',64],[deals,'contratos','#1e8e3e',46]].map(r=>`<div class="fr" style="background:${r[2]};width:${r[3]}%">${r[0]} ${r[1]}</div>`).join('')}</div>
+  <div style="margin-top:14px">${[['r1','Lead → reunião',5,70],['r2','Reunião → proposta',10,95],['r3','Proposta → contrato',5,80]].map(s=>`<div class="sl"><label for="${s[0]}">${s[1]}</label><input type="range" id="${s[0]}" min="${s[2]}" max="${s[3]}" value="${G[s[0]]}" oninput="G.${s[0]}=+this.value;upd()"><b class="num">${G[s[0]]}%</b></div>`).join('')}
+  <div class="sl"><label for="gtk">Ticket médio</label><input type="range" id="gtk" min="2000" max="25000" step="500" value="${G.tk}" oninput="G.tk=+this.value;upd()"><b class="num">${fmtk(G.tk)}</b></div></div></div>
+  <div class="card"><h3><i data-lucide="calendar-range"></i>Ritmo semanal até 30/11</h3><table><tbody>
+   <tr><td>Leads novos por semana</td><td class="num"><b>${Math.ceil(gapLeads/2)||0}</b></td></tr><tr><td>Reuniões por semana</td><td class="num"><b>${Math.ceil(gap/G.tk/(G.r3/100)/(G.r2/100)/2)||0}</b></td></tr>
+   <tr><td>Follow-ups nos contatos marcados</td><td class="num"><b>${picked.length*3}</b></td></tr><tr><td>Investimento em tráfego sugerido (CPL R$ 38)</td><td class="num"><b>${fmt(gapLeads*38)}</b></td></tr></tbody></table>
+  <button class="btn pri" style="margin-top:12px" onclick="go('followup')"><i data-lucide="send"></i>Iniciar follow-ups dos ${picked.length} contatos</button></div></div></div>`;
+ icons();
+}
+function tog(id){gPick.has(id)?gPick.delete(id):gPick.add(id);upd()}
+
+/* ============ GRÁFICOS ============ */
+function pGraficos(){
+ const o=open(),n=o.length,tk=sum(o,d=>d.v)/n,wr=.24,cy=38,vel=n*tk*wr/cy;
+ const box=(id,t,logic,big)=>`<div class="card"><h3>${t}</h3><div class="chartbox ${big?'':'sm'}"><canvas id="${id}"></canvas></div><div class="note">${logic}</div></div>`;
+ return `<div class="ph"><div><h1>Gráficos e lógicas de CRM</h1><p>Cada gráfico mostra a regra de cálculo usada, para você explicar ao cliente</p></div><div class="sp"></div><select class="sel" aria-label="Período"><option>Últimos 90 dias</option><option>Ano</option></select></div>
+ <div class="kpis"><div class="kpi"><small>Velocidade do pipeline</small><div class="v">${fmt(vel)}/dia</div><div class="s">receita que o funil gera por dia</div></div><div class="kpi"><small>Win rate</small><div class="v">24%</div><div class="s">ganhos ÷ (ganhos + perdidos)</div></div><div class="kpi"><small>Ciclo médio</small><div class="v">${cy} dias</div><div class="s">criação → ganho</div></div><div class="kpi"><small>Cobertura de pipeline</small><div class="v">${(sum(o,d=>d.v)/(META_MES-sum(won(),d=>d.v))).toFixed(1)}×</div><div class="s">ideal ≥ 3×</div></div></div>
+ <div class="card" style="margin-bottom:16px"><h3><i data-lucide="function-square" style="color:var(--violet)"></i>Velocidade do pipeline</h3><div class="formula">velocidade = (nº de oportunidades × ticket médio × win rate) ÷ ciclo em dias<br>= (${n} × ${fmt(tk)} × 24%) ÷ ${cy} = <b>${fmt(vel)} por dia</b></div><div class="muted" style="font-size:12px;margin-top:8px">Para acelerar: mais oportunidades (tráfego), ticket maior (upsell), win rate maior (qualificação) ou ciclo menor (follow-up rápido).</div></div>
+ <div class="grid g2" style="margin-bottom:16px">${box('g1','Funil de conversão por etapa','<b>Lógica:</b> % = negócios que passaram para a etapa seguinte ÷ negócios que entraram na etapa. O maior gargalo está em Proposta → Negociação.')}${box('g2','Win rate e ticket por origem','<b>Lógica:</b> win rate por origem do lead (UTM ou campo origem). Indicação converte 2,1× mais que Meta Ads, então vale um programa de indicação.')}</div>
+ <div class="grid g2" style="margin-bottom:16px">${box('g3','Previsão ponderada × meta (acumulado)','<b>Lógica:</b> previsão = ganho + Σ(valor × probabilidade da etapa) dos negócios com fechamento no mês.')}${box('g4','Tempo médio por etapa (dias)','<b>Lógica:</b> média de dias entre entrada e saída de cada etapa. Acima do limite (linha), o negócio vira "em risco".')}</div>
+ <div class="grid g3">${box('g5','Motivos de perda','<b>Lógica:</b> campo obrigatório ao marcar perdido. Preço lidera: testar piloto menor.')}${box('g6','Coorte: leads × semanas até fechar','<b>Lógica:</b> % de leads de cada mês já convertidos, por semana desde a entrada.')}${box('g7','Atividades × taxa de ganho','<b>Lógica:</b> negócios com 6 ou mais toques ganham 3× mais. Define a cadência mínima.')}</div>`;
+}
+function cGraficos(){
+ const B=css('--blue');
+ mk('g1',{type:'bar',data:{labels:['Lead','Qualificado','Diagnóstico','Proposta','Negociação','Ganho'],datasets:[{data:[100,78,64,55,30,24],backgroundColor:STAGES.map(s=>s.c),borderRadius:4}]},options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.raw.toFixed(0)+'%'}}},scales:{x:{max:100,ticks:{callback:v=>v+'%'}},y:{grid:{display:false}}}}});
+ mk('g2',{type:'bar',data:{labels:['Indicação','LinkedIn','Google Ads','Evento','Meta Ads','Orgânico'],datasets:[{label:'Win rate %',data:[42,31,22,28,20,18],backgroundColor:B,borderRadius:4,yAxisID:'y'},{label:'Ticket (R$ mil)',type:'line',data:[10.2,14.4,10.8,28,6.4,6.2],borderColor:'#e8710a',yAxisID:'y1',tension:.3}]},options:{plugins:{legend:{position:'bottom'}},scales:{y:{ticks:{callback:v=>v+'%'}},y1:{position:'right',grid:{display:false}},x:{grid:{display:false}}}}});
+ const days=[...Array(30).keys()].map(i=>i+1);
+ mk('g3',{type:'line',data:{labels:days,datasets:[{label:'Ganho',data:days.map(d=>d<=15?Math.min(8600,d*620):null),borderColor:'#1e8e3e',backgroundColor:'#1e8e3e22',fill:true,pointRadius:0},{label:'Previsão ponderada',data:days.map(d=>d<15?null:8600+(d-15)*1850),borderColor:'#a142f4',borderDash:[5,4],pointRadius:0},{label:'Meta',data:days.map(()=>META_MES),borderColor:'#d93025',borderWidth:1,pointRadius:0}]},options:{plugins:{legend:{position:'bottom'}},scales:{y:{ticks:{callback:v=>(v/1000)+'k'}},x:{grid:{display:false},ticks:{maxTicksLimit:10}}}}});
+ mk('g4',{type:'bar',data:{labels:['Lead novo','Qualificação','Diagnóstico','Proposta','Negociação'],datasets:[{label:'Dias',data:[2,5,7,12,9],backgroundColor:[B,B,B,'#d93025',B],borderRadius:4},{label:'Limite',type:'line',data:[3,7,10,10,14],borderColor:'#e8710a',borderDash:[4,3],pointRadius:3}]},options:{plugins:{legend:{position:'bottom'}},scales:{x:{grid:{display:false}}}}});
+ mk('g5',{type:'doughnut',data:{labels:['Preço','Timing','Concorrente','Sem resposta','Escopo'],datasets:[{data:[38,24,14,16,8],backgroundColor:['#d93025','#f9ab00','#a142f4','#9aa0a6','#12b5cb'],borderColor:css('--card')}]},options:{cutout:'60%',plugins:{legend:{position:'bottom'}}}});
+ mk('g6',{type:'line',data:{labels:['S1','S2','S3','S4','S6','S8','S12'],datasets:[['Ago','#9aa0a6',[2,6,11,15,19,22,26]],['Set','#1a73e8',[3,8,13,17,21,24]],['Out','#1e8e3e',[4,9,15,19]]].map(c=>({label:c[0],data:c[2],borderColor:c[1],tension:.3,pointRadius:2}))},options:{plugins:{legend:{position:'bottom'}},scales:{y:{ticks:{callback:v=>v+'%'}},x:{grid:{display:false}}}}});
+ mk('g7',{type:'bar',data:{labels:['1–2','3–5','6–8','9+'],datasets:[{data:[8,15,34,41],backgroundColor:['#9aa0a6','#8ab4f8',B,'#1e8e3e'],borderRadius:4}]},options:{plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>v+'%'}},x:{title:{display:true,text:'toques no negócio'},grid:{display:false}}}}});
+}
+
+/* ============ PRAZOS ============ */
+const PRAZOS=[
+ {ty:'Proposta',t:'Proposta vence',deal:10,dt:'Hoje 18h',h:-0,st:'hoje',a:'Estender validade'},
+ {ty:'Follow-up',t:'Retorno prometido',deal:6,dt:'14/11',h:-2,st:'vencido',a:'Reativar'},
+ {ty:'SLA resposta',t:'E-mail sem resposta há 26h',deal:2,dt:'Ontem',h:-1,st:'vencido',a:'Responder'},
+ {ty:'Contrato',t:'Enviar contrato revisado',deal:1,dt:'17/11',h:1,st:'semana',a:'Gerar contrato'},
+ {ty:'Reunião',t:'Pauta do workshop',deal:8,dt:'18/11',h:2,st:'semana',a:'Enviar pauta'},
+ {ty:'Follow-up',t:'Ligação combinada',deal:4,dt:'Hoje 11h',h:0,st:'hoje',a:'Ligar'},
+ {ty:'Proposta',t:'Escopo da fase 1',deal:12,dt:'17/11',h:1,st:'semana',a:'Enviar escopo'},
+ {ty:'Renovação',t:'Renovação de contrato: Ótica Visão',deal:13,dt:'02/12',h:16,st:'mes',a:'Agendar QBR'},
+ {ty:'Primeiro contato',t:'Lead novo sem contato (SLA 1h)',deal:7,dt:'Hoje 10h',h:0,st:'vencido',a:'Chamar no WhatsApp'},
+ {ty:'Pagamento',t:'Primeira parcela: Studio Pilates Core',deal:14,dt:'25/11',h:9,st:'mes',a:'Enviar boleto'}
+];
+let przF='todos';
+function pPrazos(){
+ const ST={vencido:['Vencido','r'],hoje:['Hoje','a'],semana:['Esta semana','b'],mes:['Próximas semanas','n']};
+ const l=PRAZOS.filter(p=>przF==='todos'||p.st===przF).sort((a,b)=>a.h-b.h);
+ const c=k=>PRAZOS.filter(p=>p.st===k).length;
+ return `<div class="ph"><div><h1>Prazos críticos</h1><p>Propostas, SLAs de resposta, contratos e renovações em uma só fila</p></div><div class="sp"></div>
+ <div class="seg">${[['todos','Todos'],['vencido','Vencidos'],['hoje','Hoje'],['semana','Semana']].map(f=>`<button class="${przF===f[0]?'on':''}" onclick="przF='${f[0]}';render()">${f[1]}</button>`).join('')}</div></div>
+ <div class="kpis"><div class="kpi" style="border-left:4px solid var(--red)"><small>Vencidos</small><div class="v dn">${c('vencido')}</div><div class="s">${fmt(sum(PRAZOS.filter(p=>p.st==='vencido'),p=>D.find(d=>d.id===p.deal).v))} em risco</div></div><div class="kpi" style="border-left:4px solid var(--amber)"><small>Vencem hoje</small><div class="v" style="color:var(--amber)">${c('hoje')}</div><div class="s">resolver até 18h</div></div><div class="kpi" style="border-left:4px solid var(--blue)"><small>Esta semana</small><div class="v">${c('semana')}</div><div class="s">planejados</div></div><div class="kpi"><small>SLA de 1ª resposta</small><div class="v">87%</div><div class="s">meta 95% em até 1h</div></div></div>
+ <div class="card tw"><table><thead><tr><th>Status</th><th>Tipo</th><th>Prazo</th><th>Negócio</th><th class="num">Valor</th><th>Quando</th><th></th></tr></thead><tbody>
+ ${l.map(p=>{const d=D.find(x=>x.id===p.deal);const s=ST[p.st];return `<tr style="${p.st==='vencido'?'box-shadow:inset 3px 0 var(--red)':p.st==='hoje'?'box-shadow:inset 3px 0 var(--amber)':''}"><td><span class="pill ${s[1]}">${s[0]}</span></td><td>${p.ty}</td><td><b>${p.t}</b></td><td>${d.e}<div class="muted" style="font-size:11.5px">${d.p}</div></td><td class="num">${fmt(d.v)}</td><td class="${p.st==='vencido'?'dn':''}">${p.dt}</td><td><button class="btn sm ${p.st==='vencido'?'pri':''}" onclick="${p.a.includes('WhatsApp')||p.a==='Reativar'?"go('followup')":`toast('${p.a}: ação registrada (demo)')`}">${p.a}</button></td></tr>`}).join('')}</tbody></table></div>
+ <div class="note">Regras: proposta vence em 7 dias após envio · SLA de primeiro contato 1h · e-mail estratégico sem resposta por mais de 24h vira prazo vencido · renovação alerta 30 dias antes.</div>`;
+}
+
+/* ============ ATIVIDADES ============ */
+const ACTS=[
+ {day:'Hoje',h:'09:42',ai:true,ty:'mail',t:'E-mail classificado como estratégico',d:'Dra. Renata Alves · Clínica Vitta · "Respondeu proposta"',src:'Agente IA · Gmail'},
+ {day:'Hoje',h:'09:30',ai:false,ty:'call',t:'Ligação realizada (12 min)',d:'Carlos Andrade · Andrade Advocacia'},
+ {day:'Hoje',h:'08:31',ai:true,ty:'brief',t:'Resumo diário gerado',d:'7 follow-ups, 4 prazos, 6 compromissos',src:'Agente IA · rotina 8h30'},
+ {day:'Hoje',h:'08:05',ai:true,ty:'lead',t:'Lead criado e qualificado (score 47)',d:'Jorge Silva · Auto Peças SC · origem Google Ads',src:'n8n · formulário LP'},
+ {day:'Hoje',h:'08:06',ai:true,ty:'wa',t:'Boas-vindas enviada no WhatsApp',d:'Jorge Silva · template "Primeiro contato"',src:'n8n · WhatsApp API'},
+ {day:'Ontem',h:'16:10',ai:true,ty:'trans',t:'Reunião transcrita e resumida',d:'Camila Rocha · EdTech Saber+ · 42 min · score atualizado 78 → 83',src:'Agente IA · Meet'},
+ {day:'Ontem',h:'15:00',ai:false,ty:'meet',t:'Reunião realizada',d:'Camila Rocha · EdTech Saber+'},
+ {day:'Ontem',h:'14:20',ai:false,ty:'move',t:'Negócio movido para Negociação',d:'EdTech Saber+ · Funil completo'},
+ {day:'Ontem',h:'11:00',ai:true,ty:'alert',t:'Alerta: negócio parado há 15 dias',d:'Construtora Horizonte · sugerido template "Reativação"',src:'Agente IA · monitor de risco'},
+ {day:'Ontem',h:'10:15',ai:false,ty:'mail',t:'Proposta enviada',d:'Felipe Mattos · Imobiliária Costa Sul · R$ 18.000'},
+ {day:'13/11',h:'17:40',ai:true,ty:'sync',t:'Custos de mídia sincronizados',d:'Meta Ads + Google Ads → CPL por origem atualizado',src:'Integração Ads'},
+ {day:'13/11',h:'10:00',ai:false,ty:'note',t:'Nota adicionada',d:'Mariana Souza · "CFO vai participar do workshop"'},
+ {day:'13/11',h:'09:12',ai:true,ty:'enrich',t:'Empresa enriquecida',d:'Grupo Litoral · CNPJ, porte, LinkedIn, 3 decisores',src:'Agente IA · enriquecimento'}
+];
+let aF='todas';
+const AIC={mail:'mail',call:'phone',brief:'sparkles',lead:'user-plus',wa:'message-circle',trans:'file-audio',meet:'video',move:'move-right',alert:'alert-triangle',sync:'refresh-cw',note:'sticky-note',enrich:'database'};
+function pAtividades(){
+ const l=ACTS.filter(a=>aF==='todas'||(aF==='ia')===a.ai);const ai=ACTS.filter(a=>a.ai).length;let lastDay='';
+ return `<div class="ph"><div><h1>Histórico de atividades</h1><p>O que você fez e o que as automações de IA fizeram por você</p></div><div class="sp"></div>
+ <div class="seg">${[['todas','Todas'],['manual','Manuais'],['ia','Automações IA']].map(f=>`<button class="${aF===f[0]?'on':''}" onclick="aF='${f[0]}';render()">${f[1]}</button>`).join('')}</div><button class="btn pri" onclick="toast('Atividade registrada (demo)')"><i data-lucide="plus"></i>Registrar</button></div>
+ <div class="kpis"><div class="kpi"><small>Atividades (7 dias)</small><div class="v">179</div></div><div class="kpi"><small>Manuais</small><div class="v" style="color:var(--blue)">111</div><div class="s">62%</div></div><div class="kpi"><small>Por automação IA</small><div class="v" style="color:var(--violet)">68</div><div class="s">38% · +12 pts no mês</div></div><div class="kpi"><small>Tempo economizado</small><div class="v up">9h40</div><div class="s">estimativa por tipo de tarefa</div></div></div>
+ <div class="grid g21"><div class="card"><div class="tlx">${l.map(a=>{const h=a.day!==lastDay?`<div class="dayh">${a.day}</div>`:'';lastDay=a.day;return h+`<div class="ti"><span class="ic" style="background:${a.ai?'var(--violet-soft)':'var(--blue-soft)'};color:${a.ai?'var(--violet)':'var(--blue)'}"><i data-lucide="${AIC[a.ty]||'circle'}"></i></span><div><div class="t">${a.t}</div><div class="d">${a.d}</div>${a.ai?`<span class="pill v" style="margin-top:5px"><i data-lucide="bot"></i>${a.src}</span>`:`<span class="pill b" style="margin-top:5px"><i data-lucide="user"></i>Maykom</span>`}</div><div class="w">${a.h}</div></div>`}).join('')}</div></div>
+ <div class="grid" style="align-content:start"><div class="card"><h3>Manual × IA por semana</h3><div class="chartbox sm"><canvas id="aw"></canvas></div></div>
+ <div class="card"><h3>Automações ativas</h3><div class="list">${[['Qualificar e-mails do Gmail','312 execuções'],['Lead da LP → CRM + WhatsApp','46 execuções'],['Transcrever reuniões e ligações','18 execuções'],['Alerta de negócio parado','9 alertas'],['Resumo diário 8h30','7 execuções']].map(x=>`<div class="li"><i data-lucide="workflow" style="color:var(--violet)"></i><div><div class="t">${x[0]}</div><div class="d">${x[1]} no mês</div></div><span class="pill g" style="margin-left:auto">ativa</span></div>`).join('')}</div></div></div></div>`;
+}
+function cAtividades(){mk('aw',{type:'bar',data:{labels:['S43','S44','S45','S46'],datasets:[{label:'Manual',data:[128,119,121,111],backgroundColor:css('--blue'),borderRadius:4},{label:'IA',data:[31,42,55,68],backgroundColor:'#a142f4',borderRadius:4}]},options:{plugins:{legend:{position:'bottom'}},scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true}}}})}
+
+/* ============ INTEGRAÇÕES ============ */
+const INTS=[
+ {n:'Gmail',c:'#ea4335',l:'G',cat:'E-mail',d:'Lê a caixa e envia e-mails estratégicos. A IA separa o que é negócio do que é automático.',st:'on',sy:'há 2 min',g:true},
+ {n:'Google Agenda',c:'#4285f4',l:'31',cat:'Agenda',d:'Reuniões, blocos de foco e convites criados pelo CRM.',st:'on',sy:'há 2 min',g:true},
+ {n:'Google Meet',c:'#00897b',l:'M',cat:'Reuniões',d:'Gravações para transcrição e resumo com IA.',st:'on',sy:'há 1 h',g:true},
+ {n:'GA4',c:'#f9ab00',l:'GA',cat:'Analytics',d:'Origem dos leads e conversões da landing page.',st:'on',sy:'há 15 min',g:true},
+ {n:'Google Ads',c:'#34a853',l:'Ad',cat:'Tráfego',d:'Custo por lead e campanhas, base da previsão de leads.',st:'on',sy:'há 15 min',g:true},
+ {n:'WhatsApp Business API',c:'#1e8e3e',l:'W',cat:'Mensagens',d:'Envio de follow-ups em um clique e recebimento de áudios.',st:'on',sy:'há 1 min'},
+ {n:'Meta Ads',c:'#0866ff',l:'f',cat:'Tráfego',d:'Leads de formulários e custos de campanha.',st:'err',sy:'token expirou há 2 dias'},
+ {n:'Pipedrive',c:'#1a1a1a',l:'P',cat:'CRM',d:'Importa negócios, estágios e histórico. Notificações automáticas ficam fora dos e-mails.',st:'on',sy:'há 30 min'},
+ {n:'RD Station Marketing',c:'#0d9488',l:'RD',cat:'Automação de marketing',d:'Recebe leads, conversões, lead scoring e origem (UTM). Marca oportunidade e venda de volta no RD.',st:'off',sy:'não conectado'},
+ {n:'RD Station CRM',c:'#0f766e',l:'RD',cat:'CRM',d:'Sincroniza negociações, funis, contatos, tarefas, anotações e motivos de perda nos dois sentidos.',st:'off',sy:'não conectado'},
+ {n:'n8n',c:'#ea4b71',l:'n8n',cat:'Automação',d:'Webhooks para workflows: lead da LP, alertas e cadências.',st:'on',sy:'há 5 min'},
+ {n:'Claude API',c:'#d97757',l:'AI',cat:'Inteligência',d:'Resumos, insights, termômetro e gerente comercial IA.',st:'on',sy:'em uso'},
+ {n:'Transcrição (Whisper)',c:'#111827',l:'Tx',cat:'Inteligência',d:'Converte áudios de WhatsApp, ligações e reuniões em texto.',st:'on',sy:'há 1 h'},
+ {n:'Brevo',c:'#0b996e',l:'B',cat:'E-mail marketing',d:'Listas de nutrição e newsletter para leads frios.',st:'off',sy:'não conectado'},
+ {n:'Asaas',c:'#1e40af',l:'$',cat:'Financeiro',d:'Cobranças e status de pagamento do negócio ganho.',st:'off',sy:'não conectado'},
+ {n:'Slack',c:'#4a154b',l:'S',cat:'Equipe',d:'Avisos de negócio ganho e prazos vencidos no canal.',st:'off',sy:'não conectado'},
+ {n:'Webhook / API REST',c:'#5f6368',l:'{}',cat:'Desenvolvedor',d:'Endpoint próprio para criar e atualizar contatos e negócios.',st:'on',sy:'412 chamadas hoje'}
+];
+let iCat='Todas';
+function stPill(s){return s==='on'?'<span class="pill g"><i data-lucide="check-circle-2"></i>Conectado</span>':s==='err'?'<span class="pill r"><i data-lucide="alert-circle"></i>Erro</span>':'<span class="pill n">Desconectado</span>'}
+function pIntegracoes(){
+ const cats=['Todas',...new Set(INTS.map(i=>i.cat))];const l=INTS.filter(i=>iCat==='Todas'||i.cat===iCat);
+ const on=INTS.filter(i=>i.st==='on').length;
+ return `<div class="ph"><div><h1>Integrações API</h1><p>Conecte as fontes de dados do CRM. Uma credencial geral pode conectar vários serviços de uma vez.</p></div><div class="sp"></div>
+ <select class="sel" aria-label="Categoria" onchange="iCat=this.value;render()">${cats.map(c=>`<option ${c===iCat?'selected':''}>${c}</option>`).join('')}</select><button class="btn" onclick="toast('Todas as integrações sincronizadas')"><i data-lucide="refresh-cw"></i>Sincronizar tudo</button></div>
+ <div class="kpis"><div class="kpi"><small>Conectadas</small><div class="v up">${on}</div><div class="s">de ${INTS.length}</div></div><div class="kpi"><small>Com erro</small><div class="v dn">${INTS.filter(i=>i.st==='err').length}</div><div class="s">ação necessária</div></div><div class="kpi"><small>Chamadas de API hoje</small><div class="v">3.218</div><div class="s">limite 50.000</div></div><div class="kpi"><small>Última sincronização</small><div class="v">1 min</div><div class="s">automática a cada 15 min</div></div></div>
+ <div class="int feat" style="margin-bottom:16px"><div class="hd"><span class="lg" style="background:linear-gradient(135deg,#4285f4,#34a853 60%,#fbbc05)">G</span><div><b>Conector Google</b><small>Credencial compartilhada · OAuth</small></div><span style="margin-left:auto">${stPill('on')}</span></div>
+  <p>Uma única conexão alimenta todos os serviços Google abaixo. Conectar pelo geral atualiza os outros cards; cada serviço continua aceitando credencial própria.</p>
+  <div class="subs">${INTS.filter(i=>i.g).map(i=>`<span class="pill b">${i.n}</span>`).join('')}</div>
+  <div class="ft">Conta: marketing@mosaicai.com.br · sincronizado há 2 min<button class="btn sm" onclick="cfg('Conector Google')"><i data-lucide="settings"></i>Configurar</button></div></div>
+ <div class="ints">${l.map(i=>`<div class="int"><div class="hd"><span class="lg" style="background:${i.c};font-size:${i.l.length>2?'11px':'14px'}">${i.l}</span><div><b>${i.n}</b><small>${i.cat}${i.g?' · via Conector Google':''}</small></div><span style="margin-left:auto">${stPill(i.st)}</span></div><p>${i.d}</p>
+  <div class="ft"><i data-lucide="clock" style="width:12px"></i>${i.sy}<button class="btn sm ${i.st==='on'?'':'pri'}" onclick="cfg('${i.n}')">${i.st==='on'?'Configurar':i.st==='err'?'Reconectar':'Conectar'}</button></div></div>`).join('')}</div>`;
+}
+function cfg(n){const i=INTS.find(x=>x.n===n)||{n,st:'on'};
+ modal(`<h3 style="margin:0 0 4px">${n}</h3><div class="muted" style="font-size:12.5px">${i.d||'Credencial compartilhada para serviços Google'}</div>
+ <label for="mk">Chave de API ou token</label><input type="password" id="mk" placeholder="cole aqui a chave" value="${i.st==='on'?'••••••••••••••••':''}">
+ <label for="mw">Webhook de retorno</label><div class="row"><input type="text" id="mw" readonly value="https://crm.demo/api/hooks/${n.toLowerCase().replace(/[^a-z0-9]+/g,'-')}"><button class="btn sm" onclick="navigator.clipboard?.writeText(document.getElementById('mw').value).then(()=>toast('Copiado'))"><i data-lucide="copy"></i></button></div>
+ <label for="mf">Frequência de sincronização</label><select class="sel" id="mf" style="width:100%"><option>A cada 15 min</option><option>A cada hora</option><option>Tempo real (webhook)</option></select>
+ <div class="row" style="margin-top:18px;justify-content:flex-end"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn pri" onclick="conn('${n}')">${i.st==='on'?'Salvar':'Conectar'}</button></div>`)}
+function conn(n){const i=INTS.find(x=>x.n===n);if(i){i.st='on';i.sy='agora'}closeModal();render();toast(n+' conectado (demo)')}
+
+/* ============ ROTEADOR ============ */
+const R={dashboard:[pDashboard,cDashboard],pipeline:[pPipeline,cPipeline],emails:[pEmails],agenda:[pAgenda,cAgenda],conversas:[pConversas],followup:[pFollowup],metas:[pMetas,upd],graficos:[pGraficos,cGraficos],prazos:[pPrazos],atividades:[pAtividades,cAtividades],integracoes:[pIntegracoes]};
+function cur(){const h=location.hash.slice(1);return R[h]?h:'dashboard'}
+function render(){
+ const c=cur();charts.forEach(x=>x.destroy());charts=[];chartDefaults();
+ document.getElementById('nav').innerHTML=navHTML(c);
+ document.getElementById('crumb').textContent=PAGES.find(p=>p[0]===c)[1];
+ const sy=window.scrollY;document.getElementById('view').innerHTML=R[c][0]();
+ if(R[c][1])R[c][1]();icons();
+ if(render._last===c)window.scrollTo(0,sy);else window.scrollTo(0,0);render._last=c;
+ document.getElementById('side').classList.remove('open');
+}
+window.addEventListener('hashchange',render);
+document.getElementById('q').addEventListener('keydown',e=>{if(e.key==='Enter'){pView='lista';go('pipeline');toast('Busca: '+e.target.value)}});
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',render);
+if(CRM_USER){document.getElementById("mename").textContent=CRM_USER.name;document.getElementById("memail").textContent=CRM_USER.email;document.getElementById("meav").textContent=CRM_USER.name.split(" ").map(function(x){return x[0]}).slice(0,2).join("").toUpperCase()}
+render();
+</script>
+</body>
+</html>
