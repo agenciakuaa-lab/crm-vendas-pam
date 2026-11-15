@@ -85,7 +85,7 @@ a:hover,.link:hover{text-decoration:underline}
       <div class="row"><label for="keep"><input type="checkbox" id="keep" checked>Manter conectado</label><button type="button" class="link" id="forgot">Esqueci a senha</button></div>
       <button class="pri" type="submit">Entrar</button>
     </form>
-    <div class="demo"><b>Versão de demonstração.</b> Entre com qualquer e-mail e senha de 4 ou mais caracteres. O login real (Google Workspace) entra quando o app for para o Supabase.</div>
+    <div class="demo"><b>Acesso restrito.</b> Use o e-mail e a senha que você recebeu.</div>
   </section>
 </main>
 <script>
@@ -94,13 +94,17 @@ function enter(name,email){
   try{(document.getElementById('keep').checked?localStorage:sessionStorage).setItem('crmAuth',data)}catch(e){}
   location.href='app.html';
 }
-document.getElementById('google').onclick=()=>enter('Maykom Pereira','maykom@mosaicai.com.br');
-document.getElementById('forgot').onclick=()=>{document.getElementById('err').style.color='var(--muted)';document.getElementById('err').textContent='Na demonstração não há envio de e-mail. Use qualquer senha.'};
-document.getElementById('f').addEventListener('submit',e=>{
-  e.preventDefault();const em=document.getElementById('email').value.trim(),pw=document.getElementById('pass').value,er=document.getElementById('err');er.style.color='';
+const OK='4e93794bb24f03cae448bfc5f1e9aee60e11a6bc2bdc793b55ada6038722b702';
+async function h(t){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+const er=document.getElementById('err');
+document.getElementById('google').onclick=()=>{er.style.color='var(--muted)';er.textContent='O login com Google entra na próxima versão. Use e-mail e senha.'};
+document.getElementById('forgot').onclick=()=>{er.style.color='var(--muted)';er.textContent='Fale com o administrador para redefinir a senha.'};
+document.getElementById('f').addEventListener('submit',async e=>{
+  e.preventDefault();const em=document.getElementById('email').value.trim().toLowerCase(),pw=document.getElementById('pass').value;er.style.color='';
   if(!/^\S+@\S+\.\S+$/.test(em)){er.textContent='Digite um e-mail válido, como nome@empresa.com.br';return}
-  if(pw.length<4){er.textContent='A senha precisa ter pelo menos 4 caracteres';return}
-  const n=em.split('@')[0].replace(/[._-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());enter(n,em);
+  if(!pw){er.textContent='Digite a sua senha';return}
+  if(await h(em+':'+pw)!==OK){er.textContent='E-mail ou senha incorretos. Confira e tente de novo.';return}
+  enter('Pam',em);
 });
 try{if(localStorage.getItem('crmAuth')||sessionStorage.getItem('crmAuth'))location.replace('app.html')}catch(e){}
 </script>
