@@ -381,10 +381,11 @@ summary::before{content:"›";display:inline-block;transition:transform .15s;fon
 details[open] summary::before{transform:rotate(90deg)}
 @media (max-width:980px){.cx{grid-template-columns:1fr}.cxl{position:static}.sigs{grid-template-columns:1fr}}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
+<script src="supa.js"></script>
 <script>
-var CRM_USER=null;try{CRM_USER=JSON.parse(localStorage.getItem('crmAuth')||sessionStorage.getItem('crmAuth')||'null')}catch(e){}
-if(!CRM_USER&&location.protocol!=='file:')location.replace('index.html');
-function logout(){try{localStorage.removeItem('crmAuth');sessionStorage.removeItem('crmAuth')}catch(e){}location.href='index.html'}
+var CRM_USER=null;
+async function logout(){try{await sb.auth.signOut()}catch(e){}location.href='index.html'}
 </script>
 </head>
 <body>
@@ -399,7 +400,7 @@ function logout(){try{localStorage.removeItem('crmAuth');sessionStorage.removeIt
     <button class="iconbtn menu-btn" id="mb" aria-label="Abrir menu"><i data-lucide="menu"></i></button>
     <div class="crumb">CRM Vendas &nbsp;›&nbsp; <b id="crumb">Dashboard</b></div>
     <div class="sp"></div>
-    <button class="iconbtn p" aria-label="Novo negócio" onclick="toast('Novo negócio (demonstração)')"><i data-lucide="plus"></i></button>
+    <button class="iconbtn p" aria-label="Novo negócio" onclick="newDeal()"><i data-lucide="plus"></i></button>
     <button class="iconbtn" aria-label="Notificações" onclick="go('prazos')"><i data-lucide="bell"></i><span class="dot">4</span></button>
     <label class="search"><i data-lucide="search" style="width:15px"></i><input id="q" placeholder="Buscar contato, empresa…"></label>
   </div>
@@ -563,7 +564,7 @@ function pPipeline(){
  return `<div class="ph"><div><h1>Pipeline de vendas</h1><p>${list.length} negócios · ${fmt(sum(list.filter(d=>d.s!=='Ganho'),d=>d.v))} em aberto · arraste os cards para mudar de estágio</p></div><div class="sp"></div>
  <label class="muted" for="porig" style="font-size:12px">Origem</label><select class="sel" id="porig" onchange="pOrigin=this.value;render()">${origins.map(o=>`<option ${o===pOrigin?'selected':''}>${o}</option>`).join('')}</select>
  <div class="seg"><button class="${pView==='kanban'?'on':''}" onclick="pView='kanban';render()">Kanban</button><button class="${pView==='lista'?'on':''}" onclick="pView='lista';render()">Lista</button></div>
- <button class="btn pri" onclick="toast('Novo negócio (demonstração)')"><i data-lucide="plus"></i>Negócio</button></div>${body}`;
+ <button class="btn pri" onclick="newDeal()"><i data-lucide="plus"></i>Negócio</button></div>${body}`;
 }
 function sortP(k){pSort.dir=pSort.k===k?-pSort.dir:-1;pSort.k=k;render()}
 function cPipeline(){
@@ -571,7 +572,7 @@ function cPipeline(){
  document.querySelectorAll('.col').forEach(col=>{
   col.addEventListener('dragover',e=>{e.preventDefault();col.classList.add('over')});
   col.addEventListener('dragleave',()=>col.classList.remove('over'));
-  col.addEventListener('drop',e=>{e.preventDefault();const d=D.find(x=>x.id==e.dataTransfer.getData('text'));const ns=col.dataset.stage;if(d&&d.s!==ns){d.s=ns;d.la=0;d.pr=ns==='Ganho'?100:Math.max(d.pr,[10,20,35,50,65,100][STAGES.findIndex(s=>s.k===ns)]);ACTS.unshift({day:'Hoje',h:'agora',ai:false,ty:'move',t:`Negócio movido para ${ns}`,d:`${d.e} · ${d.t}`});render();toast(`${d.e} → ${ns}`)}});
+  col.addEventListener('drop',e=>{e.preventDefault();const d=D.find(x=>x.id==e.dataTransfer.getData('text'));const ns=col.dataset.stage;if(d&&d.s!==ns){d.s=ns;d.la=0;d.pr=ns==='Ganho'?100:Math.max(d.pr,[10,20,35,50,65,100][STAGES.findIndex(s=>s.k===ns)]);dbMove(d,ns);ACTS.unshift({day:'Hoje',h:'agora',ai:false,ty:'move',t:`Negócio movido para ${ns}`,d:`${d.e} · ${d.t}`});render();toast(`${d.e} → ${ns}`)}});
  });
 }
 
@@ -677,7 +678,8 @@ const SIG={
 };
 const SIGI={buy:['check-circle-2','var(--green)','Sinal de compra'],pain:['target','var(--blue)','Dor'],obj:['alert-circle','var(--amber)','Objeção'],risk:['alert-triangle','var(--red)','Risco']};
 function pConversas(){
- const c=CONVS[cSel],d=D.find(x=>x.id===c.id);
+ const CV=CONVS.filter(x=>D.find(y=>y.id===x.id));if(!CV.length)return `<div class="ph"><div><h1>Conversas</h1><p>Nenhuma conversa ainda. Anexe a primeira.</p></div></div>`;if(cSel>=CV.length)cSel=0;
+ const c=CV[cSel],d=D.find(x=>x.id===c.id);
  const lv=d.sc>=80?4:d.sc>=65?3:d.sc>=50?2:1;const tn=['Gelado','Frio','Morno','Quente'];
  const col=({g:'green',a:'amber',b:'blue'})[c.worth[1]];
  const nx=c.cad[0];
@@ -686,7 +688,7 @@ function pConversas(){
   <div class="cxl">
    <label class="drop" for="up"><i data-lucide="upload-cloud"></i><b>Anexar conversa</b><span>áudio, ligação ou gravação do Meet</span></label>
    <input type="file" id="up" accept="audio/*,video/*,.txt" style="display:none" onchange="toast('Recebido: '+this.files[0].name+' · transcrevendo (demo)')">
-   ${CONVS.map((x,i)=>{const dd=D.find(y=>y.id===x.id),cc=({g:'green',a:'amber',b:'blue'})[x.worth[1]];return `<button class="cxi ${i===cSel?'on':''}" onclick="cSel=${i};render()">
+   ${CV.map((x,i)=>{const dd=D.find(y=>y.id===x.id),cc=({g:'green',a:'amber',b:'blue'})[x.worth[1]];return `<button class="cxi ${i===cSel?'on':''}" onclick="cSel=${i};render()">
     <div class="av">${ini(x.n)}</div><div style="min-width:0;text-align:left"><b>${x.n}</b><span>${x.e} · ${x.when}</span></div>
     <span class="sc" style="color:var(--${cc});background:var(--${cc}-soft)">${x.worth[2]}</span></button>`}).join('')}
   </div>
@@ -753,7 +755,7 @@ function pFollowup(){
   <div class="muted" style="font-size:11.5px;margin-top:8px">${fuCh==='wa'?d.tel:''} · variáveis {nome} {empresa} {negocio} preenchidas do CRM</div></div>`:''}
   <div class="card"><h3>Desempenho dos templates</h3><table><thead><tr><th>Template</th><th class="num">Resposta</th><th class="num">Usos</th></tr></thead><tbody>${[['Objeção de preço',58,22],['Proposta sem resposta',44,61],['Reativação',31,38],['Confirmar reunião',87,74],['Proposta vencendo',52,19]].map(r=>`<tr><td>${r[0]}</td><td class="num"><b>${r[1]}%</b></td><td class="num">${r[2]}</td></tr>`).join('')}</tbody></table></div></div></div>`;
 }
-function quick(id,t){const d=D.find(x=>x.id===id);sent.add(id);d.la=0;ACTS.unshift({day:'Hoje',h:'agora',ai:false,ty:'wa',t:`WhatsApp enviado: ${TPL[t].k}`,d:`${d.p} · ${d.e}`});render();toast(`"${TPL[t].k}" enviado para ${d.p} (simulado)`)}
+function quick(id,t){const d=D.find(x=>x.id===id);sent.add(id);d.la=0;dbActivity(d,'whatsapp','WhatsApp enviado: '+TPL[t].k,d.p+' · '+d.e);ACTS.unshift({day:'Hoje',h:'agora',ai:false,ty:'wa',t:`WhatsApp enviado: ${TPL[t].k}`,d:`${d.p} · ${d.e}`});render();toast(`"${TPL[t].k}" enviado para ${d.p} (simulado)`)}
 function cp(){const v=document.getElementById('ftxt').value;navigator.clipboard?.writeText(v).then(()=>toast('Mensagem copiada'),()=>toast('Selecione o texto e copie'))}
 
 /* ============ METAS ============ */
@@ -844,11 +846,11 @@ const PRAZOS=[
 let przF='todos';
 function pPrazos(){
  const ST={vencido:['Vencido','r'],hoje:['Hoje','a'],semana:['Esta semana','b'],mes:['Próximas semanas','n']};
- const l=PRAZOS.filter(p=>przF==='todos'||p.st===przF).sort((a,b)=>a.h-b.h);
+ const l=PRAZOS.filter(p=>D.find(d=>d.id===p.deal)).filter(p=>przF==='todos'||p.st===przF).sort((a,b)=>a.h-b.h);
  const c=k=>PRAZOS.filter(p=>p.st===k).length;
  return `<div class="ph"><div><h1>Prazos críticos</h1><p>Propostas, SLAs de resposta, contratos e renovações em uma só fila</p></div><div class="sp"></div>
  <div class="seg">${[['todos','Todos'],['vencido','Vencidos'],['hoje','Hoje'],['semana','Semana']].map(f=>`<button class="${przF===f[0]?'on':''}" onclick="przF='${f[0]}';render()">${f[1]}</button>`).join('')}</div></div>
- <div class="kpis"><div class="kpi" style="border-left:4px solid var(--red)"><small>Vencidos</small><div class="v dn">${c('vencido')}</div><div class="s">${fmt(sum(PRAZOS.filter(p=>p.st==='vencido'),p=>D.find(d=>d.id===p.deal).v))} em risco</div></div><div class="kpi" style="border-left:4px solid var(--amber)"><small>Vencem hoje</small><div class="v" style="color:var(--amber)">${c('hoje')}</div><div class="s">resolver até 18h</div></div><div class="kpi" style="border-left:4px solid var(--blue)"><small>Esta semana</small><div class="v">${c('semana')}</div><div class="s">planejados</div></div><div class="kpi"><small>SLA de 1ª resposta</small><div class="v">87%</div><div class="s">meta 95% em até 1h</div></div></div>
+ <div class="kpis"><div class="kpi" style="border-left:4px solid var(--red)"><small>Vencidos</small><div class="v dn">${c('vencido')}</div><div class="s">${fmt(sum(PRAZOS.filter(p=>p.st==='vencido'),p=>(D.find(d=>d.id===p.deal)||{v:0}).v))} em risco</div></div><div class="kpi" style="border-left:4px solid var(--amber)"><small>Vencem hoje</small><div class="v" style="color:var(--amber)">${c('hoje')}</div><div class="s">resolver até 18h</div></div><div class="kpi" style="border-left:4px solid var(--blue)"><small>Esta semana</small><div class="v">${c('semana')}</div><div class="s">planejados</div></div><div class="kpi"><small>SLA de 1ª resposta</small><div class="v">87%</div><div class="s">meta 95% em até 1h</div></div></div>
  <div class="card tw"><table><thead><tr><th>Status</th><th>Tipo</th><th>Prazo</th><th>Negócio</th><th class="num">Valor</th><th>Quando</th><th></th></tr></thead><tbody>
  ${l.map(p=>{const d=D.find(x=>x.id===p.deal);const s=ST[p.st];return `<tr style="${p.st==='vencido'?'box-shadow:inset 3px 0 var(--red)':p.st==='hoje'?'box-shadow:inset 3px 0 var(--amber)':''}"><td><span class="pill ${s[1]}">${s[0]}</span></td><td>${p.ty}</td><td><b>${p.t}</b></td><td>${d.e}<div class="muted" style="font-size:11.5px">${d.p}</div></td><td class="num">${fmt(d.v)}</td><td class="${p.st==='vencido'?'dn':''}">${p.dt}</td><td><button class="btn sm ${p.st==='vencido'?'pri':''}" onclick="${p.a.includes('WhatsApp')||p.a==='Reativar'?"go('followup')":`toast('${p.a}: ação registrada (demo)')`}">${p.a}</button></td></tr>`}).join('')}</tbody></table></div>
  <div class="note">Regras: proposta vence em 7 dias após envio · SLA de primeiro contato 1h · e-mail estratégico sem resposta por mais de 24h vira prazo vencido · renovação alerta 30 dias antes.</div>`;
@@ -927,7 +929,7 @@ function pIntegracoes(){
  ${groups.map(g=>{const l=INTS.filter(i=>i.g===g&&!(g==='Google Workspace'&&false));return `<h3 style="font-family:var(--display);font-weight:500;font-size:15px;margin:22px 0 10px">${g}</h3><div class="ints">${l.map(i=>{const s=ist(i);return `<div class="int"><div class="hd"><span class="lg" style="background:${i.c};font-size:${i.l.length>2?'11px':'14px'}">${i.l}</span><div><b>${i.n}</b><small>${i.google?'via Conector Google':i.g}</small></div><span style="margin-left:auto">${stPill(s)}</span></div><p>${i.d}</p>
   <div style="font-size:11.5px" class="muted"><b style="color:var(--text);font-weight:500">Usado em:</b> ${i.use}</div>
   <div class="ft"><i data-lucide="clock" style="width:12px"></i>${(ISTATE[i.id]||{}).at||(s==='off'?'não conectado':'sincronizado')}<button class="btn sm ${s==='on'||s==='test'?'':'pri'}" onclick="cfg('${i.id}')">${s==='on'||s==='test'?'Configurar':s==='err'?'Reconectar':'Conectar'}</button></div></div>`}).join('')}</div>`}).join('')}
- <div class="note" style="margin-top:20px"><b>Atenção:</b> as URLs de retorno e de webhook passam a responder quando o backend (Supabase) estiver no ar. <b>Segurança:</b> nesta demonstração os IDs ficam salvos neste navegador e as chaves secretas são só conferidas (não ficam guardadas). Na versão com Supabase, cada chave vai para o Vault (secrets) e as chamadas às APIs saem das funções do servidor, nunca do navegador.</div>`;
+ <div class="note" style="margin-top:20px"><b>Atenção:</b> o banco já está ligado e o status das integrações fica salvo nele. As URLs de retorno e de webhook passam a responder quando as funções de servidor forem criadas. <b>Segurança:</b> nesta demonstração os IDs ficam salvos neste navegador e as chaves secretas são só conferidas (não ficam guardadas). Na versão com Supabase, cada chave vai para o Vault (secrets) e as chamadas às APIs saem das funções do servidor, nunca do navegador.</div>`;
 }
 function fieldHTML(id,f){const v=((ISTATE[id]||{}).v||{})[f[0]],has=((ISTATE[id]||{}).sec||{})[f[0]],sec=f[2]==='secret';
  const ph=sec&&has?'•••••••• salvo (cole outro para trocar)':f[3];
@@ -975,9 +977,9 @@ function conn(id){
  const prev=ISTATE[id]||{},v=Object.assign({},prev.v||{}),sec=Object.assign({},prev.sec||{});
  fieldsOf(id).forEach(f=>{const el=document.getElementById('if_'+f[0]);if(!el||f[0]==='redir')return;const x=el.value.trim();if(!x)return;if(f[2]==='secret')sec[f[0]]=true;else v[f[0]]=x});
  const md=document.querySelector('#imode .on');const st=md&&md.dataset.m==='test'?'test':'on';
- ISTATE[id]=Object.assign({},prev,{st,at:'salvo agora',v,sec});saveI();closeModal();render();
+ ISTATE[id]=Object.assign({},prev,{st,at:'salvo agora',v,sec});saveI();dbInt(id);closeModal();render();
  toast((id==='google'?'Conector Google':INTS.find(x=>x.id===id).n)+(st==='test'?' salvo em modo de teste':' salvo'))}
-function disc(id){ISTATE[id]=Object.assign({},ISTATE[id]||{},{st:'off'});saveI();closeModal();render();toast('Desconectado')}
+function disc(id){ISTATE[id]=Object.assign({},ISTATE[id]||{},{st:'off'});saveI();dbInt(id);closeModal();render();toast('Desconectado')}
 function tgl(id){const s=ist(INTS.find(x=>x.id===id));ISTATE[id]={st:s==='on'?'off':'on'};saveI();closeModal();render()}
 
 /* ============ ROTEADOR ============ */
@@ -995,8 +997,57 @@ function render(){
 window.addEventListener('hashchange',render);
 document.getElementById('q').addEventListener('keydown',e=>{if(e.key==='Enter'){pView='lista';go('pipeline');toast('Busca: '+e.target.value)}});
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',render);
-if(CRM_USER){document.getElementById("mename").textContent=CRM_USER.name;document.getElementById("memail").textContent=CRM_USER.email;document.getElementById("meav").textContent=CRM_USER.name.split(" ").map(function(x){return x[0]}).slice(0,2).join("").toUpperCase()}
-render();
+
+/* ============ SUPABASE: carregar e gravar ============ */
+let LIVE=false;
+const fmtD=d=>d?d.slice(8,10)+'/'+d.slice(5,7):'—';
+async function loadDeals(){
+ const {data,error}=await sb.from('deals').select('id,title,value,probability,score,source,next_action,next_action_at,last_activity_at,stage_id,stages(name,probability),companies(name),contacts(name,phone)').order('created_at');
+ if(error)throw error;
+ const old=[...D];let nextId=Math.max(0,...old.map(x=>x.id))+1;
+ const rows=data.filter(r=>r.stages&&r.stages.name!=='Perdido').map(r=>{
+  const comp=r.companies?r.companies.name:'—',match=old.find(o=>o.e===comp&&!o._used);if(match)match._used=true;
+  return {id:match?match.id:nextId++,uuid:r.id,t:r.title,e:comp,p:r.contacts?r.contacts.name:'—',tel:(r.contacts&&r.contacts.phone||'').replace(/^(\d{2})(\d{5})(\d{4})$/,'$1 $2-$3'),
+   v:+r.value,s:r.stages.name,pr:r.probability??r.stages.probability,sc:r.score??50,o:r.source||'—',
+   la:Math.max(0,Math.floor((Date.now()-new Date(r.last_activity_at))/864e5)),nx:r.next_action||'Definir próxima ação',nd:fmtD(r.next_action_at)}});
+ D.length=0;rows.forEach(r=>D.push(r));
+}
+async function loadInts(){const {data}=await sb.from('integrations').select('provider,status,config,last_sync_at');(data||[]).forEach(r=>{ISTATE[r.provider]=Object.assign({},ISTATE[r.provider]||{},{st:r.status==='error'?'err':r.status,v:Object.assign({},(ISTATE[r.provider]||{}).v||{},r.config||{}),at:r.last_sync_at?'sincronizado':'salvo'})})}
+const STAGE_ID={'Lead novo':1,'Qualificação':2,'Diagnóstico':3,'Proposta enviada':4,'Negociação':5,'Ganho':6};
+async function dbMove(d,ns){if(!LIVE||!d.uuid)return;const up={stage_id:STAGE_ID[ns],last_activity_at:new Date().toISOString(),probability:d.pr};if(ns==='Ganho')up.won_at=new Date().toISOString();
+ const {error}=await sb.from('deals').update(up).eq('id',d.uuid);if(error){toast('Erro ao salvar: '+error.message);return}
+ await sb.from('activities').insert({deal_id:d.uuid,type:'move',title:'Negócio movido para '+ns,detail:d.e+' · '+d.t})}
+async function dbActivity(d,type,title,detail){if(!LIVE||!d||!d.uuid)return;await sb.from('activities').insert({deal_id:d.uuid,type,title,detail})}
+async function dbInt(id){if(!LIVE)return;const st=ISTATE[id]||{};const {error}=await sb.from('integrations').upsert({provider:id,status:st.st==='err'?'error':(st.st||'off'),config:st.v||{}},{onConflict:'owner_id,provider'});if(error)toast('Status não salvo no banco: '+error.message)}
+function newDeal(){modal(`<h3 style="margin:0 0 4px">Novo negócio</h3><div class="muted" style="font-size:12.5px">Grava direto no banco do CRM.</div>
+ <label for="nd_t">Negócio</label><input type="text" id="nd_t" placeholder="Ex.: Automação de atendimento">
+ <label for="nd_e">Empresa</label><input type="text" id="nd_e" placeholder="Ex.: Clínica Vitta">
+ <label for="nd_p">Contato</label><input type="text" id="nd_p" placeholder="Nome da pessoa">
+ <label for="nd_tel">WhatsApp</label><input type="text" id="nd_tel" placeholder="48 99999-9999">
+ <div class="row" style="gap:10px"><div style="flex:1"><label for="nd_v">Valor (R$)</label><input type="number" id="nd_v" placeholder="5000"></div><div style="flex:1"><label for="nd_o">Origem</label><select class="sel" id="nd_o" style="width:100%">${['Meta Ads','Google Ads','Indicação','LinkedIn','Instagram','Orgânico','Evento','RD Station'].map(o=>`<option>${o}</option>`).join('')}</select></div></div>
+ <label for="nd_sc">Temperatura</label><select class="sel" id="nd_sc" style="width:100%"><option value="85">Quente</option><option value="70" selected>Morno</option><option value="55">Frio</option><option value="40">Gelado</option></select>
+ <div id="nd_err" class="dn" style="font-size:12.5px;margin-top:8px;min-height:16px"></div>
+ <div class="row" style="margin-top:14px;justify-content:flex-end"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn pri" id="nd_go" onclick="saveDeal()">Criar negócio</button></div>`)}
+async function saveDeal(){const g=id=>document.getElementById(id).value.trim(),er=document.getElementById('nd_err');
+ if(!g('nd_t')||!g('nd_e')||!g('nd_p')){er.textContent='Preencha negócio, empresa e contato.';return}
+ if(!LIVE){er.textContent='Sem conexão com o banco.';return}
+ document.getElementById('nd_go').disabled=true;
+ try{const c=await sb.from('companies').insert({name:g('nd_e')}).select('id').single();if(c.error)throw c.error;
+  const ct=await sb.from('contacts').insert({company_id:c.data.id,name:g('nd_p'),phone:g('nd_tel').replace(/\D/g,''),source:g('nd_o'),lead_score:+g('nd_sc')}).select('id').single();if(ct.error)throw ct.error;
+  const dl=await sb.from('deals').insert({title:g('nd_t'),company_id:c.data.id,contact_id:ct.data.id,stage_id:1,value:+g('nd_v')||0,probability:10,score:+g('nd_sc'),source:g('nd_o'),next_action:'Primeiro contato',next_action_at:new Date().toISOString().slice(0,10)}).select('id').single();if(dl.error)throw dl.error;
+  await sb.from('activities').insert({deal_id:dl.data.id,type:'lead',title:'Negócio criado',detail:g('nd_e')+' · '+g('nd_t')});
+  await loadDeals();closeModal();render();toast('Negócio criado em Lead novo')}
+ catch(e){er.textContent='Não foi possível salvar: '+e.message;document.getElementById('nd_go').disabled=false}}
+async function boot(){
+ document.getElementById('view').innerHTML='<div class="muted" style="padding:40px;text-align:center">Carregando seus dados…</div>';
+ const {data}=await sb.auth.getSession();
+ if(!data.session){location.replace('index.html');return}
+ const u=data.session.user;CRM_USER={email:u.email,name:(u.user_metadata&&u.user_metadata.name)||u.email.split('@')[0].replace(/[._-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase())};
+ document.getElementById('mename').textContent=CRM_USER.name;document.getElementById('memail').textContent=CRM_USER.email;document.getElementById('meav').textContent=CRM_USER.name.split(' ').map(x=>x[0]).slice(0,2).join('').toUpperCase();
+ try{await loadDeals();await loadInts();LIVE=true}catch(e){toast('Não consegui ler o banco: '+e.message)}
+ render();
+}
+boot();
 </script>
 </body>
 </html>
