@@ -1,0 +1,6 @@
+{
+  "name": "crm-vendas-pam",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" }
+}

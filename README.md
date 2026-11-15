@@ -1,10 +1,19 @@
-# CRM Vendas (demo)
+# CRM Vendas
 
-Demonstração em HTML de um CRM de vendas no estilo Pipedrive com visual Google.
+CRM de vendas no estilo Pipedrive com visual Google. Site estático + funções de servidor na Vercel + banco no Supabase.
 
-- `index.html`: tela de login (demo: aceita qualquer e-mail e senha de 4+ caracteres)
-- `app.html`: CRM com 11 telas (dashboard, pipeline, metas, gráficos, e-mails, conversas, follow-ups, agenda, prazos, atividades, integrações)
+## Estrutura
+- `index.html` login (Supabase Auth) · `app.html` CRM · `supa.js` conexão com o banco
+- `api/status.js` mostra quais chaves estão preenchidas (sem revelar valores)
+- `api/hooks/[provider].js` webhooks: `/api/hooks/wa`, `/rdcrm`, `/resend`, `/n8n`, `/hook`
+- `api/oauth/google.js` login do Conector Google (`/oauth/google`)
+- `supabase/migrations/` estrutura do banco · `supabase/seed.sql` dados de exemplo
 
-Site estático, sem build. Publicado na Vercel.
+## Chaves
+Todas ficam em **Vercel > crm-vendas-pam > Settings > Environment Variables** (lista em `.env.example`).
+As que estão como `PREENCHER` ainda não foram configuradas. Depois de trocar qualquer valor: **Deployments > Redeploy**.
 
-Próxima fase: Supabase (auth + banco), Gmail/Calendar API, WhatsApp Cloud API, Resend, RD Station.
+## Banco (rodar no SQL Editor, nesta ordem)
+1. `supabase/migrations/20261115000001_init.sql`
+2. `supabase/migrations/20261115000002_backend.sql`
+3. `supabase/seed.sql` (depois de criar o usuário em Authentication)
