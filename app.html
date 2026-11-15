@@ -399,7 +399,6 @@ function logout(){try{localStorage.removeItem('crmAuth');sessionStorage.removeIt
     <button class="iconbtn menu-btn" id="mb" aria-label="Abrir menu"><i data-lucide="menu"></i></button>
     <div class="crumb">CRM Vendas &nbsp;›&nbsp; <b id="crumb">Dashboard</b></div>
     <div class="sp"></div>
-    <span class="demotag">Demonstração · dados ilustrativos</span>
     <button class="iconbtn p" aria-label="Novo negócio" onclick="toast('Novo negócio (demonstração)')"><i data-lucide="plus"></i></button>
     <button class="iconbtn" aria-label="Notificações" onclick="go('prazos')"><i data-lucide="bell"></i><span class="dot">4</span></button>
     <label class="search"><i data-lucide="search" style="width:15px"></i><input id="q" placeholder="Buscar contato, empresa…"></label>
@@ -758,36 +757,50 @@ function quick(id,t){const d=D.find(x=>x.id===id);sent.add(id);d.la=0;ACTS.unshi
 function cp(){const v=document.getElementById('ftxt').value;navigator.clipboard?.writeText(v).then(()=>toast('Mensagem copiada'),()=>toast('Selecione o texto e copie'))}
 
 /* ============ METAS ============ */
-let G={meta:8000,r1:30,r2:60,r3:35,tk:6500};let gPick=null;
+let G={meta:15000,r1:30,r2:60,r3:35,tk:6500};let gPick=null;
+const TEMP={Quente:{f:1.25,c:'r',fu:2,dias:7},Morno:{f:1,c:'a',fu:4,dias:14},Frio:{f:.6,c:'b',fu:6,dias:25},Gelado:{f:.3,c:'n',fu:8,dias:40}};
+let gTemps={Quente:true,Morno:true,Frio:true,Gelado:false};
+/* chance ajustada = probabilidade da etapa × fator da temperatura (máx. 95%) */
+const adjP=d=>Math.min(95,Math.round(d.pr*TEMP[temp(d.sc)[0]].f));
+const ev=d=>d.v*adjP(d)/100;
 function pMetas(){
  const ws=sum(won(),d=>d.v);
- return `<div class="ph"><div><h1>Metas</h1><p>Defina quanto quer faturar a mais e veja quais contatos e quantos leads levam até lá</p></div></div>
- <div class="card" style="margin-bottom:16px"><div class="goalin"><span style="font-weight:600">Quero faturar a mais</span><label class="sr" for="gmeta" style="display:none">Meta</label>
-  <span style="font-size:20px;font-weight:700">+R$</span><input class="big" type="number" id="gmeta" value="${G.meta}" step="500" oninput="G.meta=+this.value||0;gPick=null;upd()">
-  <span class="muted">até 30/11</span><span style="flex:1"></span>${[8000,15000,25000,40000].map(v=>`<button class="chip ${G.meta===v?'on':''}" onclick="G.meta=${v};gPick=null;render()">+${fmtk(v)}</button>`).join('')}</div></div>
+ return `<div class="ph"><div><h1>Metas</h1><p>Defina quanto quer faturar a mais. A conta usa a etapa do negócio e a temperatura do lead.</p></div></div>
+ <div class="card" style="margin-bottom:16px"><div class="goalin"><span style="font-weight:600">Quero faturar a mais</span>
+  <span style="font-size:20px;font-weight:700">+R$</span><input class="big" type="number" id="gmeta" aria-label="Meta em reais" value="${G.meta}" step="500" oninput="G.meta=+this.value||0;gPick=null;upd()">
+  <span class="muted">até 30/11</span><span style="flex:1"></span>${[8000,15000,25000,40000].map(v=>`<button class="chip ${G.meta===v?'on':''}" onclick="G.meta=${v};gPick=null;render()">+${fmtk(v)}</button>`).join('')}</div>
+  <div class="row" style="margin-top:14px;flex-wrap:wrap;gap:8px"><span class="muted" style="font-size:12.5px">Incluir leads:</span>${Object.keys(TEMP).map(t=>`<button class="chip ${gTemps[t]?'on':''}" onclick="gTemps['${t}']=!gTemps['${t}'];gPick=null;render()"><span class="pill ${TEMP[t].c}" style="padding:0 6px">${t}</span> ×${String(TEMP[t].f).replace('.',',')}</button>`).join('')}</div></div>
  <div id="gout"></div>
  <div class="card" style="margin-top:16px"><h3>Progresso da meta mensal (${fmt(META_MES)})</h3><div class="prog"><span style="width:${ws/META_MES*100}%"></span></div><div class="row muted" style="font-size:12px;margin-top:6px"><span>Ganho ${fmt(ws)}</span><span style="margin-left:auto">Faltam ${fmt(META_MES-ws)}</span></div></div>`;
 }
 function upd(){
  const el=document.getElementById('gout');if(!el)return;
- const cand=[...open()].sort((a,b)=>b.v*b.pr-a.v*a.pr);
- if(!gPick){gPick=new Set();let acc=0;for(const d of cand){if(acc>=G.meta)break;gPick.add(d.id);acc+=d.v*d.pr/100}}
- const picked=cand.filter(d=>gPick.has(d.id)),pond=sum(picked,d=>d.v*d.pr/100),bruto=sum(picked,d=>d.v);
- const gap=Math.max(0,G.meta-pond);
+ const order=['Quente','Morno','Frio','Gelado'];
+ const cand=[...open()].filter(d=>gTemps[temp(d.sc)[0]]).sort((a,b)=>ev(b)-ev(a));
+ if(!gPick){gPick=new Set();let acc=0;for(const t of order){for(const d of cand.filter(x=>temp(x.sc)[0]===t)){if(acc>=G.meta)break;gPick.add(d.id);acc+=ev(d)}}}
+ const picked=cand.filter(d=>gPick.has(d.id)),pond=sum(picked,ev),bruto=sum(picked,d=>d.v),gap=Math.max(0,G.meta-pond);
+ const byT=order.map(t=>{const l=picked.filter(d=>temp(d.sc)[0]===t);return {t,n:l.length,v:sum(l,ev)}}).filter(x=>x.n);
+ const fus=sum(picked,d=>TEMP[temp(d.sc)[0]].fu),dmax=Math.max(0,...picked.map(d=>TEMP[temp(d.sc)[0]].dias));
+ const hotShare=pond?Math.round(sum(picked.filter(d=>temp(d.sc)[0]==='Quente'),ev)/pond*100):0;
+ let risk=hotShare>=60?['g','Baixo','A maior parte vem de leads quentes.']:hotShare>=35?['a','Médio','Depende de esquentar leads mornos.']:['r','Alto','A meta depende de leads frios. Reforce a geração de leads.'];
+ if(picked.length===1&&risk[1]==='Baixo')risk=['a','Médio','Depende de um único contato. Tenha um plano B.'];
  const deals=Math.ceil(G.meta/G.tk),props=Math.ceil(deals/(G.r3/100)),reun=Math.ceil(props/(G.r2/100)),leads=Math.ceil(reun/(G.r1/100));
- const gapLeads=Math.ceil(Math.ceil(gap/G.tk)/(G.r3/100)/(G.r2/100)/(G.r1/100));
- el.innerHTML=`<div class="grid g2"><div class="card"><h3><i data-lucide="users"></i>Contatos que levam a +${fmt(G.meta)}<span class="sp"></span><span class="pill ${pond>=G.meta?'g':'a'}">${pond>=G.meta?'meta coberta':'faltam '+fmt(gap)}</span></h3>
-  <div class="note" style="margin:0 0 12px">A IA escolhe os negócios com maior <b>valor esperado</b> (valor × probabilidade) até cobrir a meta. Marque ou desmarque para simular.</div>
-  <div class="list">${cand.map(d=>{const on=gPick.has(d.id);return `<label class="li" style="cursor:pointer;${on?'border-color:var(--green);background:var(--green-soft)':''}"><input type="checkbox" ${on?'checked':''} onchange="tog(${d.id})"><div><div class="t">${d.p} · ${d.e}</div><div class="d">${d.s} · ${d.pr}% · ${d.nx}</div></div><div class="r">${fmt(d.v*d.pr/100)}<div class="muted" style="font-size:11px;font-weight:400">de ${fmt(d.v)}</div></div></label>`}).join('')}</div>
-  <div class="note"><b>${picked.length} contatos</b> · ${fmt(bruto)} brutos · <b>${fmt(pond)} ponderados</b>${gap>0?` · precisa de mais <b>${gapLeads} leads novos</b> para cobrir a diferença`:''}</div></div>
- <div class="grid" style="align-content:start"><div class="card"><h3><i data-lucide="filter"></i>Funil reverso para +${fmt(G.meta)} só com leads novos</h3>
+ const gapLeads=gap?Math.ceil(Math.ceil(gap/G.tk)/(G.r3/100)/(G.r2/100)/(G.r1/100)):0;
+ const BG={Quente:'#d93025',Morno:'#f9ab00',Frio:'#8ab4f8',Gelado:'#9aa0a6'};
+ el.innerHTML=`<div class="kpis"><div class="kpi"><small>Meta</small><div class="v">+${fmt(G.meta)}</div></div><div class="kpi"><small>Coberto pelos contatos</small><div class="v ${pond>=G.meta?'up':''}">${fmt(pond)}</div><div class="s">${Math.min(100,Math.round(pond/G.meta*100))}% da meta</div></div><div class="kpi"><small>Risco da meta</small><div class="v"><span class="pill ${risk[0]}" style="font-size:15px;padding:4px 12px">${risk[1]}</span></div><div class="s">${risk[2]}</div></div><div class="kpi"><small>Esforço</small><div class="v">${fus} toques</div><div class="s">prazo típico até ${dmax} dias</div></div></div>
+ <div class="grid g2"><div class="card"><h3><i data-lucide="users"></i>Contatos que levam a +${fmt(G.meta)}<span class="sp"></span><span class="pill ${pond>=G.meta?'g':'a'}">${pond>=G.meta?'meta coberta':'faltam '+fmt(gap)}</span></h3>
+  <div style="margin-bottom:12px"><div class="row" style="height:14px;border-radius:999px;overflow:hidden;gap:0;background:var(--soft)">${byT.map(x=>`<span title="${x.t}: ${fmt(x.v)}" style="height:100%;width:${x.v/Math.max(pond,G.meta)*100}%;background:${BG[x.t]}"></span>`).join('')}</div>
+  <div class="row" style="flex-wrap:wrap;gap:12px;margin-top:6px;font-size:12px">${byT.map(x=>`<span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${BG[x.t]}"></span> ${x.t}: <b>${fmt(x.v)}</b> · ${x.n} contato${x.n>1?'s':''}</span>`).join('')}</div></div>
+  <div class="list">${order.filter(t=>gTemps[t]).map(t=>{const l=cand.filter(d=>temp(d.sc)[0]===t);if(!l.length)return '';return `<div class="muted" style="font-size:11.5px;font-weight:600;margin-top:6px">${t.toUpperCase()} · chance ×${String(TEMP[t].f).replace('.',',')} · ~${TEMP[t].fu} toques para fechar</div>`+l.map(d=>{const on=gPick.has(d.id);return `<label class="li" style="cursor:pointer;${on?'border-color:var(--green);background:var(--green-soft)':''}"><input type="checkbox" ${on?'checked':''} onchange="tog(${d.id})"><div style="min-width:0"><div class="t">${d.p} · ${d.e}</div><div class="d">${d.s} · etapa ${d.pr}% → <b>${adjP(d)}% ajustado</b> · score ${d.sc}</div></div><div class="r">${fmt(ev(d))}<div class="muted" style="font-size:11px;font-weight:400">de ${fmt(d.v)}</div></div></label>`}).join('')}).join('')}</div>
+  <div class="note"><b>${picked.length} contatos</b> · ${fmt(bruto)} brutos · <b>${fmt(pond)} esperados</b>${gap>0?` · faltam ${fmt(gap)}: cerca de <b>${gapLeads} leads novos</b>`:''}<br>Chance ajustada = probabilidade da etapa × fator da temperatura (quente ×1,25 · morno ×1 · frio ×0,6 · gelado ×0,3), com limite de 95%. A seleção começa pelos quentes.</div></div>
+ <div class="grid" style="align-content:start"><div class="card"><h3><i data-lucide="list-checks"></i>Plano por temperatura</h3><div class="list">
+  ${[['Quente','Fechar','Enviar proposta ou contrato e agendar assinatura nesta semana.'],['Morno','Esquentar','Tirar objeções com case, demo ou call de 15 min. Cadência de 4 toques.'],['Frio','Reativar','Mensagem de reativação com material novo. Se não responder, vai para nutrição (Brevo).']].map(x=>{const l=picked.filter(d=>temp(d.sc)[0]===x[0]);return `<div class="li" style="align-items:flex-start"><div style="width:64px;flex:none"><span class="pill ${TEMP[x[0]].c}">${x[0]}</span></div><div><div class="t">${x[1]} · ${l.length} contato${l.length!==1?'s':''}</div><div class="d">${x[2]}</div></div></div>`}).join('')}
+  </div><button class="btn pri" style="margin-top:12px" onclick="go('followup')"><i data-lucide="send"></i>Iniciar follow-ups dos ${picked.length} contatos</button></div>
+ <div class="card"><h3><i data-lucide="filter"></i>Funil reverso para +${fmt(G.meta)} só com leads novos</h3>
   <div class="funnelrev">${[[leads,'leads','#1a73e8',100],[reun,'reuniões','#12b5cb',82],[props,'propostas','#a142f4',64],[deals,'contratos','#1e8e3e',46]].map(r=>`<div class="fr" style="background:${r[2]};width:${r[3]}%">${r[0]} ${r[1]}</div>`).join('')}</div>
   <div style="margin-top:14px">${[['r1','Lead → reunião',5,70],['r2','Reunião → proposta',10,95],['r3','Proposta → contrato',5,80]].map(s=>`<div class="sl"><label for="${s[0]}">${s[1]}</label><input type="range" id="${s[0]}" min="${s[2]}" max="${s[3]}" value="${G[s[0]]}" oninput="G.${s[0]}=+this.value;upd()"><b class="num">${G[s[0]]}%</b></div>`).join('')}
-  <div class="sl"><label for="gtk">Ticket médio</label><input type="range" id="gtk" min="2000" max="25000" step="500" value="${G.tk}" oninput="G.tk=+this.value;upd()"><b class="num">${fmtk(G.tk)}</b></div></div></div>
-  <div class="card"><h3><i data-lucide="calendar-range"></i>Ritmo semanal até 30/11</h3><table><tbody>
-   <tr><td>Leads novos por semana</td><td class="num"><b>${Math.ceil(gapLeads/2)||0}</b></td></tr><tr><td>Reuniões por semana</td><td class="num"><b>${Math.ceil(gap/G.tk/(G.r3/100)/(G.r2/100)/2)||0}</b></td></tr>
-   <tr><td>Follow-ups nos contatos marcados</td><td class="num"><b>${picked.length*3}</b></td></tr><tr><td>Investimento em tráfego sugerido (CPL R$ 38)</td><td class="num"><b>${fmt(gapLeads*38)}</b></td></tr></tbody></table>
-  <button class="btn pri" style="margin-top:12px" onclick="go('followup')"><i data-lucide="send"></i>Iniciar follow-ups dos ${picked.length} contatos</button></div></div></div>`;
+  <div class="sl"><label for="gtk">Ticket médio</label><input type="range" id="gtk" min="2000" max="25000" step="500" value="${G.tk}" oninput="G.tk=+this.value;upd()"><b class="num">${fmtk(G.tk)}</b></div></div>
+  <div class="note">Investimento em tráfego para cobrir a diferença (CPL R$ 38): <b>${fmt(gapLeads*38)}</b></div></div></div></div>`;
  icons();
 }
 function tog(id){gPick.has(id)?gPick.delete(id):gPick.add(id);upd()}
