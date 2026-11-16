@@ -1,5 +1,6 @@
 // POST /api/google/sync {days:7, wipeSample:true}
-// Importa da conta Google conectada: contatos, empresas, negócios, atividades e conversas
+// Importa da conta Google conectada: reuniões da Agenda viram contatos, empresas, negócios e atividades;
+// resumos do SalesBud, anotações do Gemini (e-mail) e transcrições do Drive viram conversas
 import { json, userFromRequest, sbAdmin } from '../_lib.js';
 import { googleToken, gapi } from '../_google.js';
 
@@ -60,28 +61,10 @@ export async function POST(request) {
       if (name && !name.includes('@') && p.name === pretty(email, '')) p.name = name;
       p.events.push(ev); people.set(email, p);
     };
-    const qIn = `newer_than:${days}d -category:promotions -category:social -in:chats -from:me`;
-    const qOut = `in:sent newer_than:${days}d`;
-    const [lin, lout] = await Promise.all([gapi(token, `${G}/messages?maxResults=100&q=${q(qIn)}`), gapi(token, `${G}/messages?maxResults=100&q=${q(qOut)}`)]);
-    const meta = (id) => gapi(token, `${G}/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Cc&metadataHeaders=Subject&metadataHeaders=List-Unsubscribe&metadataHeaders=Precedence`).catch(() => null);
-    const inMsgs = (await inChunks((lin.messages || []).map((m) => m.id), 20, meta)).filter(Boolean);
-    const outMsgs = (await inChunks((lout.messages || []).map((m) => m.id), 20, meta)).filter(Boolean);
-    stats.emails_lidos = inMsgs.length + outMsgs.length;
-    for (const m of inMsgs) {
-      const [f] = parseAddr(hdr(m, 'From')); if (!f) continue;
-      const auto = hdr(m, 'List-Unsubscribe') || /bulk|list/i.test(hdr(m, 'Precedence')) || AUTO_LOCAL.test(f.email) || AUTO_DOMAINS.test(domainOf(f.email));
-      if (auto) continue;
-      add(f.email, f.name, { kind: 'in', key: `gmail:${m.id}`, at: new Date(Number(m.internalDate)).toISOString(), title: `E-mail recebido: ${hdr(m, 'Subject') || '(sem assunto)'}` });
-    }
-    for (const m of outMsgs) {
-      for (const to of [...parseAddr(hdr(m, 'To')), ...parseAddr(hdr(m, 'Cc'))]) {
-        if (AUTO_LOCAL.test(to.email) || AUTO_DOMAINS.test(domainOf(to.email))) continue;
-        add(to.email, to.name, { kind: 'out', key: `gmail:${m.id}:${to.email}`, at: new Date(Number(m.internalDate)).toISOString(), title: `E-mail enviado: ${hdr(m, 'Subject') || '(sem assunto)'}` });
-      }
-    }
     const cal = await gapi(token, `https://www.googleapis.com/calendar/v3/calendars/primary/events?${new URLSearchParams({ timeMin: since.toISOString(), timeMax: new Date().toISOString(), singleEvents: 'true', orderBy: 'startTime', maxResults: '250' })}`);
     const events = (cal.items || []).filter((e) => e.status !== 'cancelled' && e.start?.dateTime);
     stats.reunioes_lidas = events.length;
+    stats.emails_lidos = 0;
     const eventByTitle = new Map();
     for (const e of events) {
       const ext = (e.attendees || []).filter((a) => !a.self && !a.resource && a.email && !internal(a.email.toLowerCase()) && a.responseStatus !== 'declined');
@@ -159,12 +142,19 @@ export async function POST(request) {
       const ct = att.map((e) => ctByEmail.get(e)).find(Boolean), deal = ct && dealByComp.get(ct.company_id);
       convs.push({ owner_id: uid, deal_id: deal?.id || null, kind: /gemini|anota/i.test(f.name) ? 'gemini_notes' : 'meet', file_path: `drive:${f.id}`, summary: f.name, transcript: { text }, occurred_at: f.modifiedTime });
     }
-    const sbList = await gapi(token, `${G}/messages?maxResults=30&q=${q(`from:salesbud newer_than:${days}d`)}`).catch(() => ({}));
-    for (const m of sbList.messages || []) {
+    const sumList = await gapi(token, `${G}/messages?maxResults=50&q=${q(`newer_than:${days}d {subject:"O resumo do seu call chegou" subject:"Anotações"}`)}`).catch(() => ({}));
+    const dec = (p) => { if (!p) return ''; if (p.mimeType === 'text/plain' && p.body?.data) return Buffer.from(p.body.data, 'base64url').toString('utf8'); for (const x of p.parts || []) { const t = dec(x); if (t) return t; } if (p.mimeType === 'text/html' && p.body?.data) return Buffer.from(p.body.data, 'base64url').toString('utf8').replace(/<style[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' '); return ''; };
+    for (const m of sumList.messages || []) {
       if (convSeen.has(`gmail:${m.id}`) || Date.now() - t0 > 50000) continue;
       const full = await gapi(token, `${G}/messages/${m.id}?format=full`).catch(() => null); if (!full) continue;
-      const dec = (p) => { if (!p) return ''; if (p.mimeType === 'text/plain' && p.body?.data) return Buffer.from(p.body.data, 'base64url').toString('utf8'); for (const x of p.parts || []) { const t = dec(x); if (t) return t; } if (p.mimeType === 'text/html' && p.body?.data) return Buffer.from(p.body.data, 'base64url').toString('utf8').replace(/<style[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' '); return ''; };
-      convs.push({ owner_id: uid, kind: 'salesbud', file_path: `gmail:${m.id}`, summary: hdr(full, 'Subject') || 'Reunião SalesBud', transcript: { text: dec(full.payload).slice(0, 50000) }, occurred_at: new Date(Number(full.internalDate)).toISOString() });
+      const subject = hdr(full, 'Subject');
+      const kind = /^\s*O resumo do seu call chegou!?/i.test(subject) ? 'salesbud' : /^\s*Anotações\s*:/i.test(subject) ? 'gemini_email' : null;
+      if (!kind) continue;
+      stats.emails_lidos++;
+      const title = subject.replace(/^\s*(O resumo do seu call chegou!?|Anotações\s*:)\s*/i, '').replace(/^["“”]|["“”]$/g, '').toLowerCase();
+      const att = [...eventByTitle].find(([t]) => t && title && (title.includes(t) || t.includes(title.split(/\s+\d/)[0])))?.[1] || [];
+      const ct = att.map((e) => ctByEmail.get(e)).find(Boolean), deal = ct && dealByComp.get(ct.company_id);
+      convs.push({ owner_id: uid, deal_id: deal?.id || null, kind, file_path: `gmail:${m.id}`, summary: subject, transcript: { text: dec(full.payload).slice(0, 50000) }, occurred_at: new Date(Number(full.internalDate)).toISOString() });
     }
     await ins('conversations', convs);
     stats.conversas = convs.length;
