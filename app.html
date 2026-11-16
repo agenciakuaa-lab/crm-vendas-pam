@@ -533,14 +533,18 @@ function pDashboard(){
   <form class="row" onsubmit="event.preventDefault();const i=document.getElementById('aiq');if(i.value.trim()){ask(i.value);i.value=''}"><input type="text" id="aiq" placeholder="Pergunte ao gerente IA sobre seu pipeline…"><button class="btn pri"><i data-lucide="send"></i></button></form></div>
  </div>`;
 }
-function ask(q){
- const m=document.getElementById('msgs');m.insertAdjacentHTML('beforeend',`<div class="msg u">${q.replace(/</g,'&lt;')}</div>`);
+let CHAT=[];
+async function ask(q){
+ const m=document.getElementById('msgs');m.insertAdjacentHTML('beforeend',`<div class="msg u">${q.replace(/</g,'&lt;')}</div>`);m.scrollTop=m.scrollHeight;
+ if(typeof api==='function'&&typeof sb!=='undefined'){const typing=document.createElement('div');typing.className='msg a';typing.textContent='Analisando seus dados…';m.appendChild(typing);m.scrollTop=m.scrollHeight;
+  CHAT.push({role:'user',text:q});
+  try{const j=await api('/api/ai/chat',{method:'POST',body:JSON.stringify({messages:CHAT})});CHAT.push({role:'model',text:j.text});typing.textContent=j.text;m.scrollTop=m.scrollHeight;return}
+  catch(e){CHAT.pop();typing.remove();if(!/GEMINI_API_KEY/.test(e.message)){m.insertAdjacentHTML('beforeend',`<div class="msg a">Não consegui falar com o Gemini: ${esc(e.message)}</div>`);return}}}
  const o=open().sort((a,b)=>prio(b)-prio(a));let a;
- if(/prior/i.test(q))a='Os 3 negócios com maior prioridade hoje:\n'+o.slice(0,3).map((d,i)=>`${i+1}. ${d.e} (${fmt(d.v)}) · ${d.nx}`).join('\n')+'\n\nJuntos somam '+fmt(sum(o.slice(0,3),d=>d.v*d.pr/100))+' ponderados.';
- else if(/convers/i.test(q))a='Conversão lead → cliente em 90 dias: 24% (meta 25%).\nO maior gargalo está em Proposta → Negociação (55%). Indicação converte 2,1× mais que Meta Ads.';
- else if(/esfri/i.test(q))a='Esfriando (sem atividade há mais de 7 dias):\n'+open().filter(d=>d.la>7).map(d=>`• ${d.e}: ${d.la} dias, ${fmt(d.v)}`).join('\n')+'\n\nSugestão: mensagem de reativação com prazo, disponível em Follow-ups.';
- else a=`Faltam ${fmt(META_MES-sum(won(),d=>d.v))} para a meta. Feche Clínica Vitta e EdTech Saber+ (negociação, ${fmt(33000)}) e destrave Construtora Horizonte. Veja a página Metas para o plano completo.`;
- setTimeout(()=>{m.insertAdjacentHTML('beforeend',`<div class="msg a">${a}</div>`);m.scrollTop=m.scrollHeight},350);m.scrollTop=m.scrollHeight;
+ if(/prior/i.test(q))a='Os 3 negócios com maior prioridade hoje:\n'+o.slice(0,3).map((d,i)=>`${i+1}. ${d.e} (${fmt(d.v)}) · ${d.nx}`).join('\n');
+ else if(/esfri/i.test(q))a='Esfriando (sem atividade há mais de 7 dias):\n'+open().filter(d=>d.la>7).map(d=>`• ${d.e}: ${d.la} dias, ${fmt(d.v)}`).join('\n');
+ else a='Para respostas completas, preencha a chave do Gemini em Integrações.';
+ setTimeout(()=>{m.insertAdjacentHTML('beforeend',`<div class="msg a">${a}</div>`);m.scrollTop=m.scrollHeight},300);
 }
 function cDashboard(){
  const blue=css('--blue');
@@ -638,21 +642,22 @@ function pAgenda(){
    ${ev.d?`<div class="row" style="margin-top:12px"><button class="btn sm" onclick="go('conversas')">Ver última conversa</button><button class="btn sm" onclick="go('followup')">Mensagem de confirmação</button></div>`:''}</div>
    <div class="card"><h3>Hoje no funil</h3><div class="list"><div class="li"><i data-lucide="send"></i><div><div class="t">Follow-ups</div><div class="d">3 atrasados</div></div><div class="r">7</div></div><div class="li"><i data-lucide="alarm-clock" class="dn"></i><div><div class="t">Prazos críticos</div><div class="d">1 proposta vence hoje</div></div><div class="r dn">4</div></div></div></div></div></div>`;
  }else{
-  const now=GOOGLE_ON?new Date():new Date(2026,10,16),Y=now.getFullYear(),M=now.getMonth(),last=new Date(Y,M+1,0).getDate(),todayD=now.getDate();
+  const base=GOOGLE_ON?new Date():new Date(2026,10,16),vm=new Date(base.getFullYear(),base.getMonth()+AGM,1),Y=vm.getFullYear(),M=vm.getMonth(),last=new Date(Y,M+1,0).getDate(),todayD=AGM===0?base.getDate():AGM<0?99:0,now=AGM===0?base:vm;
+  let EVM=AGM===0?GCAL:GCALM[Y+'-'+M];if(GOOGLE_ON&&AGM!==0&&!EVM)loadMonth(Y,M);if(EVM==='…')EVM=null;
   const first=new Date(Y,M,1).getDay();const cells=[];for(let i=0;i<first;i++)cells.push(null);for(let d=1;d<=last;d++)cells.push(d);while(cells.length%7)cells.push(null);
-  const byDay={};if(GOOGLE_ON&&GCAL){GCAL.forEach(e=>{const k=+String(e.start).slice(8,10);(byDay[k]=byDay[k]||[]).push(e)})}
+  const byDay={};if(GOOGLE_ON&&EVM){EVM.forEach(e=>{const k=+String(e.start).slice(8,10);(byDay[k]=byDay[k]||[]).push(e)})}
   else{const demo={3:2,4:1,5:3,6:1,10:2,11:2,12:1,13:3,14:1,16:3,17:2,18:2,19:1,20:2,23:1,24:2,25:1,26:2,27:1};Object.entries(demo).forEach(([d,n])=>{byDay[d]=Array.from({length:n},(_,i)=>({title:['Reunião de diagnóstico','Follow-up de proposta','Call de alinhamento'][i%3],start:`${Y}-${String(M+1).padStart(2,'0')}-${String(d).padStart(2,'0')}T${10+i*2}:00:00-03:00`,attendees:[{name:'Cliente'}]}))})}
   const all=Object.values(byDay).flat(),ext=all.filter(e=>(e.attendees||[]).length);
   const wk0=new Date(Y,M,todayD-now.getDay()),wk1=new Date(Y,M,todayD-now.getDay()+7);const inWeek=all.filter(e=>{const d=new Date(e.start);return d>=wk0&&d<wk1});
-  const upcoming=all.filter(e=>new Date(e.start)>=new Date(Y,M,todayD)).sort((x,y)=>new Date(x.start)-new Date(y.start)).slice(0,8);
+  const upcoming=(AGM===0?all.filter(e=>new Date(e.start)>=new Date(Y,M,todayD)):all).sort((x,y)=>new Date(x.start)-new Date(y.start)).slice(0,AGM===0?8:40);
   const mname=new Date(Y,M,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'}).replace(/^./,c=>c.toUpperCase());
   const dt=d=>new Date(Y,M,d),realMonth=cells.filter(d=>d&&d<todayD).reduce((a,d)=>a+((LEADDAY||{})[ymdL(dt(d))]||0),0),prevRest=cells.filter(d=>d&&d>=todayD&&!isWeekend(dt(d))).reduce((a,d)=>a+leadForecast(dt(d)),0);
-  body=`<div class="kpis"><div class="kpi"><small>Leads no mês até hoje</small><div class="v">${realMonth}</div><div class="s">1º contato registrado no CRM</div></div><div class="kpi"><small>Previsão até o fim do mês</small><div class="v">${prevRest}</div><div class="s">mesmos dias do mês passado</div></div><div class="kpi"><small>Reuniões no mês</small><div class="v">${all.length}</div><div class="s">${ext.length} com gente de fora</div></div><div class="kpi"><small>Nesta semana</small><div class="v">${inWeek.length}</div><div class="s">${(byDay[todayD]||[]).length} hoje</div></div></div>
-  <div class="grid g21"><div class="card"><h3>${mname}<span class="sp"></span><span class="muted" style="font-size:11.5px;font-weight:400">fim de semana sem previsão · ~N = previsão pelo mesmo dia do mês passado</span>${GOOGLE_ON&&!GCAL&&!GCAL_ERR?' · carregando…':''}${GCAL_ERR?' · <span class="dn" style="font-size:12px">'+esc(GCAL_ERR)+'</span>':''}</h3>
+  body=`<div class="kpis"><div class="kpi"><small>${AGM<0?"Leads no mês":"Leads no mês até hoje"}</small><div class="v">${AGM>0?"—":realMonth}</div><div class="s">1º contato registrado no CRM</div></div><div class="kpi"><small>${AGM===0?"Previsão até o fim do mês":"Previsão do mês"}</small><div class="v">${AGM<0?"—":prevRest}</div><div class="s">mesmos dias do mês anterior</div></div><div class="kpi"><small>Reuniões no mês</small><div class="v">${all.length}</div><div class="s">${ext.length} com gente de fora</div></div><div class="kpi"><small>${AGM===0?"Nesta semana":"Dias úteis no mês"}</small><div class="v">${AGM===0?inWeek.length:cells.filter(d=>d&&!isWeekend(dt(d))).length}</div><div class="s">${AGM===0?(byDay[todayD]||[]).length+" hoje":"seg a sex"}</div></div></div>
+  <div class="grid g21"><div class="card"><h3><button class="iconbtn" aria-label="Mês anterior" onclick="AGM--;render()"><i data-lucide="chevron-left"></i></button><span style="min-width:150px;text-align:center">${mname}</span><button class="iconbtn" aria-label="Próximo mês" onclick="AGM++;render()"><i data-lucide="chevron-right"></i></button>${AGM!==0?'<button class="btn sm" onclick="AGM=0;render()">Hoje</button>':''}${GOOGLE_ON&&!EVM&&!GCAL_ERR?' · carregando…':''}<span class="sp"></span><span class="muted" style="font-size:11.5px;font-weight:400">fim de semana sem previsão · ~N = previsão pelo mesmo dia do mês anterior</span>${GCAL_ERR?' · <span class="dn" style="font-size:12px">'+esc(GCAL_ERR)+'</span>':''}</h3>
    <div class="cal">${['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map(w=>`<div class="wd">${w}</div>`).join('')}
    ${cells.map(d=>{if(!d)return '<div class="cd out"></div>';const ev=byDay[d]||[],D0=dt(d),wk=isWeekend(D0),past=d<todayD,n=past?((LEADDAY||{})[ymdL(D0)]||0):leadForecast(D0);
     return `<div class="cd ${d===todayD?'today':''} ${wk?'wk':''}"><div class="n">${d}${ev.length?`<span class="pill b" style="font-size:9.5px">${ev.length}</span>`:''}</div>${wk?'':`<div class="fc" style="background:${past?'var(--soft)':'var(--blue-soft)'};color:${past?'var(--text)':'var(--blue)'}">${past?'':'~'}${n} lead${n===1?'':'s'}${past?'':' prev.'}</div>`}${ev.slice(0,2).map(e=>`<div class="mt" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(e.title)}">● ${e.allDay?'':hhmm(e.start)+' '}${esc(e.title)}</div>`).join('')}${ev.length>2?`<div class="mt">+${ev.length-2} mais</div>`:''}</div>`}).join('')}</div></div>
-   <div class="card" style="align-self:start"><h3><i data-lucide="calendar-clock"></i>Próximas reuniões</h3><div class="list">${upcoming.length?upcoming.map(e=>`<div class="li"><div style="min-width:0"><div class="t">${esc(e.title)}</div><div class="d">${new Date(e.start).toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'})}${e.allDay?'':' · '+hhmm(e.start)}${(e.attendees||[]).length?' · '+esc((e.attendees||[]).map(a=>a.name).slice(0,2).join(', ')):''}</div></div>${e.meet?`<a class="btn sm" style="margin-left:auto" href="${e.meet}" target="_blank" rel="noopener">Meet</a>`:''}</div>`).join(''):'<div class="muted">Nenhuma reunião pela frente neste mês.</div>'}</div></div></div>`;
+   <div class="card" style="align-self:start"><h3><i data-lucide="calendar-clock"></i>${AGM===0?"Próximas reuniões":"Reuniões do mês"}</h3><div class="list">${upcoming.length?upcoming.map(e=>`<div class="li"><div style="min-width:0"><div class="t">${esc(e.title)}</div><div class="d">${new Date(e.start).toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'})}${e.allDay?'':' · '+hhmm(e.start)}${(e.attendees||[]).length?' · '+esc((e.attendees||[]).map(a=>a.name).slice(0,2).join(', ')):''}</div></div>${e.meet?`<a class="btn sm" style="margin-left:auto" href="${e.meet}" target="_blank" rel="noopener">Meet</a>`:''}</div>`).join(''):`<div class="muted">${AGM===0?'Nenhuma reunião pela frente neste mês.':'Nenhuma reunião neste mês.'}</div>`}</div></div></div>`;
  }
  return `<div class="ph"><div><h1>Agenda</h1><p>${GOOGLE_ON?'Google Agenda conectado':'Exemplo · conecte o Google em Integrações para ver sua agenda'}</p></div><div class="sp"></div><div class="seg"><button class="${agView==='dia'?'on':''}" onclick="agView='dia';render()">Dia</button><button class="${agView==='mes'?'on':''}" onclick="agView='mes';render()">Mês</button></div><button class="btn pri" onclick="toast('Evento criado (demo)')"><i data-lucide="plus"></i>Evento</button></div>${body}`;
 }
@@ -750,7 +755,7 @@ function pFollowup(){
  let list=[...open()].sort((a,b)=>prio(b)-prio(a));
  if(fuTab==='atrasados')list=list.filter(d=>d.la>7);if(fuTab==='hoje')list=list.filter(d=>d.nd==='16/11');
  if(fuSel===null||!D.find(x=>x.id===fuSel))fuSel=list[0]?.id;const d=D.find(x=>x.id===fuSel);
- const txt=d?fill(TPL[fuTpl].t,d):'';
+ const txt=FU_PREFILL||(d?fill(TPL[fuTpl].t,d):'');FU_PREFILL=null;
  return `<div class="ph"><div><h1>Follow-ups</h1><p>Lista ordenada pelo índice de prioridade · envio em um clique por WhatsApp ou e-mail</p></div><div class="sp"></div><div class="seg">${[['todos','Todos'],['hoje','Hoje'],['atrasados','Atrasados']].map(t=>`<button class="${fuTab===t[0]?'on':''}" onclick="fuTab='${t[0]}';fuSel=null;render()">${t[1]}</button>`).join('')}</div></div>
  <div class="fu"><div class="card"><h3>Prioridades<span class="sp"></span><span class="muted" style="font-weight:400;font-size:12px">prioridade = score 40% + prob. 30% + valor 20% + dias parado 10%</span></h3><div class="list">
  ${list.map((x,i)=>{const [tl,tc]=temp(x.sc),st=sugTpl(x);return `<div class="li" style="cursor:pointer;${x.id===fuSel?'border-color:var(--blue);box-shadow:0 0 0 1px var(--blue)':''}" onclick="fuSel=${x.id};fuTpl=${st};render()">
@@ -1015,7 +1020,7 @@ function pEmailsLive(){
  <div class="mread">${m?`<h2>${title(m)}</h2><div class="row" style="flex-wrap:wrap">${tag(m)}<span class="muted" style="font-size:12px">${esc(m.fromEmail)} · ${new Date(m.date).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'})}</span></div>
   <div class="mbody">${esc(GBODY[m.id]==='…'||!GBODY[m.id]?m.snippet+'\n\n(carregando o resumo completo…)':GBODY[m.id])}</div>
   <div class="row" style="flex-wrap:wrap"><button class="btn pri" onclick="go('followup')"><i data-lucide="send"></i>Fazer follow-up</button><button class="btn" onclick="go('conversas')"><i data-lucide="messages-square"></i>Ver em Conversas</button><a class="btn" href="https://mail.google.com/mail/u/0/#all/${m.threadId}" target="_blank" rel="noopener"><i data-lucide="external-link"></i>Abrir no Gmail</a></div>
-  <div class="note">Com a chave do Claude ou do Gemini, a IA extrai deste resumo o termômetro, as objeções e o próximo passo, e liga ao negócio certo.</div>`:'<div class="muted" style="padding:30px;text-align:center">Selecione um resumo.</div>'}</div></div>`;
+  <div style="margin-top:16px">${anButton('gmail:'+m.id,'gmail',m.id,m.subject)}</div>`:'<div class="muted" style="padding:30px;text-align:center">Selecione um resumo.</div>'}</div></div>`;
 }
 async function gReply(id){const m=(GMAIL||[]).find(x=>x.id===id),t=document.getElementById('greply').value.trim(),r=document.getElementById('gres');if(!t){r.className='dn';r.textContent='Escreva a resposta antes de enviar.';return}
  const b=document.getElementById('gsend');b.disabled=true;r.className='muted';r.textContent='Enviando…';
@@ -1037,7 +1042,7 @@ function trList(){if(!GOOGLE_ON)return '';loadTr();
 function openTr(id){GTRSEL=id;if(!GTRTXT[id]){GTRTXT[id]='…';api('/api/google/transcripts?id='+id).then(j=>{GTRTXT[id]=j.text}).catch(e=>{GTRTXT[id]='Erro: '+e.message}).finally(()=>render())}render()}
 function trView(){const f=(GTR||[]).find(x=>x.id===GTRSEL);if(!f)return '';const t=GTRTXT[f.id];
  return `<div class="cxd"><div class="cxh"><div class="av" style="width:44px;height:44px"><i data-lucide="file-text"></i></div><div><h2>${esc(f.name)}</h2><span class="muted">${f.kind} · Google Drive · ${new Date(f.modified).toLocaleString('pt-BR')}</span></div><span class="sp" style="flex:1"></span><a class="btn" href="${f.link}" target="_blank" rel="noopener"><i data-lucide="external-link"></i>Abrir no Drive</a></div>
- <div class="note" style="margin:0"><b>Resumo, termômetro e próximo passo</b> são gerados pela IA quando a chave do Claude ou do Gemini estiver preenchida na Vercel.</div>
+ ${anButton('drive:'+f.id,'drive',f.id,f.name)}
  <section><h4>Texto</h4><div class="mbody" style="max-height:620px;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:16px">${t==='…'||!t?'Carregando…':esc(t)}</div></section></div>`}
 
 let GSB=null,GSB_ERR=null;
@@ -1047,7 +1052,7 @@ function sbList(){if(!GOOGLE_ON)return '';loadSb();
 function openSb(id){GTRSEL='sb:'+id;if(!GTRTXT['sb:'+id]){GTRTXT['sb:'+id]='…';api('/api/google/gmail?id='+id).then(j=>{GTRTXT['sb:'+id]=j.body}).catch(e=>{GTRTXT['sb:'+id]='Erro: '+e.message}).finally(()=>render())}render()}
 function sbView(){const id=GTRSEL.slice(3),f=(GSB||[]).find(x=>x.id===id);if(!f)return '';const t=GTRTXT[GTRSEL];
  return `<div class="cxd"><div class="cxh"><div class="av" style="width:44px;height:44px;background:var(--amber-soft);color:var(--amber)"><i data-lucide="mic"></i></div><div><h2>${esc(f.subject)}</h2><span class="muted">${f.type==='salesbud'?'SalesBud':'Gemini'} · recebido por e-mail · ${new Date(f.date).toLocaleString('pt-BR')}</span></div><span class="sp" style="flex:1"></span><a class="btn" href="https://mail.google.com/mail/u/0/#all/${f.threadId}" target="_blank" rel="noopener"><i data-lucide="external-link"></i>Abrir no Gmail</a></div>
- <div class="note" style="margin:0">O resumo já vem pronto do ${f.type==='salesbud'?'SalesBud':'Gemini'}. Com a chave do Claude ou do Gemini, o CRM cruza isso com o negócio e calcula termômetro e próximo passo.</div>
+ ${anButton('gmail:'+f.id,'gmail',f.id,f.subject)}
  <section><h4>Conteúdo</h4><div class="mbody" style="max-height:620px;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:16px">${t==='…'||!t?'Carregando…':esc(t)}</div></section></div>`}
 async function fuGmail(id){const d=D.find(x=>x.id===id),to=document.getElementById('fto').value.trim(),sub=document.getElementById('fsub').value.trim(),body=document.getElementById('ftxt').value.trim();
  if(!/^\S+@\S+\.\S+$/.test(to)){toast('Informe o e-mail do contato');return}
@@ -1086,7 +1091,26 @@ async function loadLeadDays(){try{const {data}=await sb.from('activities').selec
 const ymdL=d=>d.toLocaleDateString('sv-SE',{timeZone:'America/Sao_Paulo'});
 const isWeekend=d=>d.getDay()===0||d.getDay()===6;
 /* previsão = leads do mesmo dia no mês passado; se esse dia caiu no fim de semana, usa a sexta anterior */
-function leadForecast(d){const p=new Date(d.getFullYear(),d.getMonth()-1,Math.min(d.getDate(),new Date(d.getFullYear(),d.getMonth(),0).getDate()));while(isWeekend(p))p.setDate(p.getDate()-1);return (LEADDAY&&LEADDAY[ymdL(p)])||0}
+function leadForecast(d,depth=0){const p=new Date(d.getFullYear(),d.getMonth()-1,Math.min(d.getDate(),new Date(d.getFullYear(),d.getMonth(),0).getDate()));while(isWeekend(p))p.setDate(p.getDate()-1);const t0=new Date();t0.setHours(0,0,0,0);if(p>=t0&&depth<24)return leadForecast(p,depth+1);return (LEADDAY&&LEADDAY[ymdL(p)])||0}
+let AGM=0,GCALM={};
+function loadMonth(Y,M){const k=Y+'-'+M;if(GCALM[k])return;GCALM[k]='…';const last=new Date(Y,M+1,0).getDate(),mm=String(M+1).padStart(2,'0');api(`/api/google/calendar?from=${Y}-${mm}-01&to=${Y}-${mm}-${last}`).then(j=>{GCALM[k]=j.events}).catch(()=>{GCALM[k]=[]}).finally(()=>{if(cur()==='agenda')render()})}
+let AN={};
+function anButton(key,src,id,title){const st=AN[key];return `<div id="an_${key.replace(/[^a-z0-9]/gi,'')}">${st&&st.data?anHTML(st.data,key):`<button class="btn pri" ${st&&st.loading?'disabled':''} onclick="runAn('${key}','${src}','${id}',${esc(JSON.stringify(title||''))})"><i data-lucide="sparkles"></i>${st&&st.loading?'Analisando com o Gemini…':'Analisar com IA'}</button>${st&&st.err?`<div class="dn" style="font-size:12.5px;margin-top:6px">${esc(st.err)}</div>`:''}`}</div>`}
+async function runAn(key,src,id,title){AN[key]={loading:true};render();try{const j=await api('/api/ai/analyze',{method:'POST',body:JSON.stringify({source:src,id,title})});AN[key]={data:j}}catch(e){AN[key]={err:e.message}}render()}
+function anHTML(a,key){const v=a.vale_a_pena||{},n=+v.nota||0,col=n>=75?'green':n>=50?'amber':'red',t=a.termometro||{},avg=Math.round(((t.orcamento||0)+(t.autoridade||0)+(t.necessidade||0)+(t.prazo||0)+(t.fit||0))/5),lv=avg>=80?4:avg>=65?3:avg>=50?2:1,tn=['Gelado','Frio','Morno','Quente'];
+ const SI={compra:['check-circle-2','var(--green)','Sinal de compra'],dor:['target','var(--blue)','Dor'],objecao:['alert-circle','var(--amber)','Objeção'],risco:['alert-triangle','var(--red)','Risco']};const ps=a.proximo_passo||{};
+ return `<div class="cxd" style="gap:16px">
+ <div class="verdict" style="background:var(--${col}-soft)"><div class="vnum" style="color:var(--${col})">${n}</div><div style="flex:1"><div class="vt">${esc(v.rotulo||'')}</div><div class="muted" style="font-size:13px">${esc(v.motivo||'')}</div></div>
+  <div class="steps">${tn.map((x,i)=>`<span style="${i<lv?`background:${['#8ab4f8','#fbbc04','#e8710a','#d93025'][i]}`:''}"></span>`).join('')}<small>${tn[lv-1]}</small></div></div>
+ <section><h4>Resumo da IA</h4><p class="lead" style="font-size:15px">${esc(a.resumo||'')}</p>${a.empresa||a.negocio_crm?`<div class="muted" style="font-size:12.5px;margin-top:6px">${a.empresa?'Empresa: <b>'+esc(a.empresa)+'</b>':''}${a.contato?' · Contato: '+esc(a.contato):''}${a.negocio_crm?' · Negócio no CRM: <b>'+esc(a.negocio_crm)+'</b>':''}</div>`:''}</section>
+ ${(a.sinais||[]).length?`<section><h4>O que importa</h4><div class="sigs">${a.sinais.map(sg=>{const k=SI[sg.tipo]||SI.dor;return `<div class="sig"><i data-lucide="${k[0]}" style="color:${k[1]}"></i><div><small style="color:${k[1]}">${k[2]}</small><div>${esc(sg.texto)}</div></div></div>`}).join('')}</div></section>`:''}
+ <section class="nextbox"><h4>Próximo passo</h4><div class="row" style="gap:14px;flex-wrap:wrap"><span class="nch"><i data-lucide="${/whats/i.test(ps.canal)?'message-circle':/mail/i.test(ps.canal)?'mail':'phone'}"></i></span><div style="flex:1;min-width:200px"><b>${esc(ps.acao||'')}</b><div class="muted" style="font-size:12.5px">${esc(ps.quando||'')} · ${esc(ps.canal||'')}</div></div>
+  ${a.mensagem_followup?`<button class="btn pri" onclick="useAnMsg('${key}')"><i data-lucide="send"></i>Usar no follow-up</button>`:''}</div>${a.mensagem_followup?`<div class="note" style="white-space:pre-line">${esc(a.mensagem_followup)}</div>`:''}</section>
+ <details><summary>Critérios de qualificação</summary><div style="margin-top:10px">${[['Orçamento','orcamento'],['Autoridade','autoridade'],['Necessidade','necessidade'],['Prazo','prazo'],['Fit com serviço','fit']].map(([l,k])=>{const x=+t[k]||0;return `<div class="fac"><span>${l}</span><div class="track"><span style="width:${x}%;background:${x>=75?'var(--green)':x>=50?'var(--amber)':'var(--red)'}"></span></div><b class="num">${x}</b></div>`}).join('')}</div></details>
+ ${(a.cadencia||[]).length?`<details><summary>Cadência sugerida <span class="muted">· ${a.cadencia.length} passos</span></summary><div class="cad" style="margin-top:12px">${a.cadencia.map(c=>`<div class="cs"><b>${esc(c.quando)} · ${esc(c.canal)}</b><span class="muted">${esc(c.acao)}</span></div>`).join('')}</div></details>`:''}
+ <div class="muted" style="font-size:11px">Análise gerada por ${esc(a.model||'Gemini')} · <a style="color:var(--blue);cursor:pointer" onclick="delete AN['${key}'];render()">refazer</a></div></div>`}
+function useAnMsg(key){const a=AN[key]&&AN[key].data;if(!a)return;const d=a.negocio_crm&&D.find(x=>x.t===a.negocio_crm);if(d){fuSel=d.id}FU_PREFILL=a.mensagem_followup;fuCh=/whats/i.test((a.proximo_passo||{}).canal||'')?'wa':'email';go('followup')}
+let FU_PREFILL=null;
 /* ============ SUPABASE: carregar e gravar ============ */
 let LIVE=false;
 const fmtD=d=>d?d.slice(8,10)+'/'+d.slice(5,7):'—';
