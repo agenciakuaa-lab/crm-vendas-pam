@@ -521,7 +521,7 @@ function chartDefaults(){if(typeof Chart==='undefined')return;Chart.defaults.fon
 function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2300)}
 function icons(){if(window.lucide)lucide.createIcons()}
 function go(h){location.hash=h}
-function modal(html){document.getElementById('mbox').innerHTML=html;document.getElementById('modal').classList.add('show');icons()}
+function modal(html){if(CONFIRM_CB&&!/confirmDone/.test(html)){const cb=CONFIRM_CB;CONFIRM_CB=null;cb(false)}document.getElementById('mbox').innerHTML=html;document.getElementById('modal').classList.add('show');icons()}
 function closeModal(){document.getElementById('modal').classList.remove('show')}
 document.getElementById('modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal()});
 document.getElementById('mb').onclick=()=>document.getElementById('side').classList.toggle('open');
@@ -790,7 +790,7 @@ function pFollowup(){
   <textarea id="ftxt" aria-label="Mensagem" oninput="document.getElementById('bub')&&(document.getElementById('bub').textContent=this.value)">${txt}</textarea>
   ${fuCh==='wa'?`<div class="wa-preview"><div class="bubble" id="bub">${txt}</div></div>`:''}
   <div class="row" style="margin-top:12px;flex-wrap:wrap">
-   ${fuCh==='wa'?`<a class="btn wa" target="_blank" rel="noopener" href="https://wa.me/55${d.tel.replace(/\D/g,'')}?text=${encodeURIComponent(txt)}" onclick="sent.add(${d.id});setTimeout(render,300)"><i data-lucide="send"></i>Abrir no WhatsApp</a>`:`<button class="btn pri" id="fsend" onclick="fuGmail(${d.id})"><i data-lucide="send"></i>Enviar pelo Gmail</button>`}
+   ${fuCh==='wa'?`<button class="btn wa" onclick="waGo(${d.id})"><i data-lucide="send"></i>Abrir no WhatsApp</button>`:`<button class="btn pri" id="fsend" onclick="fuGmail(${d.id})"><i data-lucide="send"></i>Enviar pelo Gmail</button>`}
    <button class="btn" onclick="cp()"><i data-lucide="copy"></i>Copiar</button><button class="btn" onclick="toast('Agendado para amanhã 9h (demo)')"><i data-lucide="clock"></i>Agendar</button></div>
   <div class="muted" style="font-size:11.5px;margin-top:8px">${fuCh==='wa'?d.tel:''} · variáveis {nome} {empresa} {negocio} preenchidas do CRM</div></div>`:''}
   <div class="card"><h3>Desempenho dos templates</h3><table><thead><tr><th>Template</th><th class="num">Resposta</th><th class="num">Usos</th></tr></thead><tbody>${[['Objeção de preço',58,22],['Proposta sem resposta',44,61],['Reativação',31,38],['Confirmar reunião',87,74],['Proposta vencendo',52,19]].map(r=>`<tr><td>${r[0]}</td><td class="num"><b>${r[1]}%</b></td><td class="num">${r[2]}</td></tr>`).join('')}</tbody></table></div></div></div>`;
@@ -1050,6 +1050,7 @@ function pEmailsLive(){
   <div id="gres" style="font-size:12.5px;margin-top:8px;min-height:16px"></div>`:'<div class="muted" style="padding:30px;text-align:center">Selecione um e-mail.</div>'}</div></div>`;
 }
 async function gReply(id){const m=(GMAIL||[]).find(x=>x.id===id),t=document.getElementById('greply').value.trim(),r=document.getElementById('gres');if(!t){r.className='dn';r.textContent='Escreva a resposta antes de enviar.';return}
+ if(!await confirmSend({canal:'E-mail (Gmail) · resposta na mesma conversa',para:m?(m.fromName+' <'+m.fromEmail+'>'):'',assunto:m?(/^re:/i.test(m.subject)?m.subject:'Re: '+m.subject):'',texto:t}))return;
  const b=document.getElementById('gsend');b.disabled=true;r.className='muted';r.textContent='Enviando…';
  try{await api('/api/google/gmail',{method:'POST',body:JSON.stringify({threadId:m.threadId,messageId:m.messageId,to:m.fromEmail,subject:m.subject,body:t})});r.className='up';r.textContent='Resposta enviada pelo seu Gmail, na mesma conversa.';document.getElementById('greply').value='';
   const d=D.find(x=>x.p===m.fromName);if(d)dbActivity(d,'email','E-mail respondido',m.subject)}
@@ -1069,6 +1070,7 @@ function loadSb(){if(GSB||GSB_ERR)return;cachedApi('summaries','/api/google/gmai
 async function fuGmail(id){const d=D.find(x=>x.id===id),to=document.getElementById('fto').value.trim(),sub=document.getElementById('fsub').value.trim(),body=document.getElementById('ftxt').value.trim();
  if(!/^\S+@\S+\.\S+$/.test(to)){toast('Informe o e-mail do contato');return}
  if(typeof GOOGLE_ON==='undefined'||!GOOGLE_ON){toast('Conecte a conta Google em Integrações para enviar de verdade');return}
+ if(!await confirmSend({canal:'E-mail (Gmail)',para:to,assunto:sub,texto:body}))return;
  const b=document.getElementById('fsend');b.disabled=true;
  try{await api('/api/google/gmail',{method:'POST',body:JSON.stringify({to,subject:sub,body})});sent.add(id);d.la=0;dbActivity(d,'email','E-mail enviado: '+sub,to);
   if(d.uuid&&!d.email){const {data}=await sb.from('deals').select('contact_id').eq('id',d.uuid).maybeSingle();if(data&&data.contact_id)await sb.from('contacts').update({email:to}).eq('id',data.contact_id);d.email=to}
@@ -1322,9 +1324,10 @@ function pFollowupLive(){loadSb();loadTr();if(CONVDB===null)loadConvDB().then(()
  </div></div><div class="grid" style="align-content:start">${comp}</div></div>`;
 }
 async function fuSendMail(key){const it=fuItems().find(x=>x.key===key),to=document.getElementById('fto').value.trim(),sub=document.getElementById('fsub').value.trim(),body=document.getElementById('ftxt').value.trim();
- if(!/^\S+@\S+\.\S+$/.test(to)){toast('Informe o e-mail do cliente');return}const b=document.getElementById('fsend');b.disabled=true;
+ if(!/^\S+@\S+\.\S+$/.test(to)){toast('Informe o e-mail do cliente');return}if(!await confirmSend({canal:'E-mail (Gmail)',para:to,assunto:sub,texto:body}))return;const b=document.getElementById('fsend');b.disabled=true;
  try{await api('/api/google/gmail',{method:'POST',body:JSON.stringify({to,subject:sub,body})});fuMarkDone(key);if(it&&it.d){dbActivity(it.d,'email','Follow-up enviado: '+sub,to)}render();toast('E-mail enviado pelo seu Gmail')}catch(e){toast('Não foi possível enviar: '+e.message);b.disabled=false}}
-function fuSendWa(key){const it=fuItems().find(x=>x.key===key),ph=document.getElementById('fph').value.replace(/\D/g,''),body=document.getElementById('ftxt').value.trim();if(ph.length<10){toast('Informe o WhatsApp com DDD');return}
+async function fuSendWa(key){const it=fuItems().find(x=>x.key===key),ph=document.getElementById('fph').value.replace(/\D/g,''),body=document.getElementById('ftxt').value.trim();if(ph.length<10){toast('Informe o WhatsApp com DDD');return}
+ if(!await confirmSend({canal:'WhatsApp',para:ph,texto:body}))return;
  window.open(`https://wa.me/${ph.startsWith('55')?ph:'55'+ph}?text=${encodeURIComponent(body)}`,'_blank');fuMarkDone(key);if(it&&it.d)dbActivity(it.d,'whatsapp','Follow-up por WhatsApp',it.a.empresa||'');render()}
 
 /* novas reuniões: verifica a cada 3 min e atualiza as páginas sozinho */
@@ -1367,6 +1370,17 @@ function evDel(id){const e=EVIDX[id];if(!e)return;modal(`<h3 style="margin:0 0 8
  <div class="row" style="margin-top:14px;justify-content:flex-end"><button class="btn" onclick="evOpen('${id}')">Voltar</button><button class="btn" id="ed_ok" style="background:var(--red);color:#fff;border-color:var(--red)" onclick="evDelGo('${id}')"><i data-lucide="trash-2"></i>Excluir</button></div>`);icons()}
 async function evDelGo(id){const n=document.getElementById('ed_n'),b=document.getElementById('ed_ok');b.disabled=true;
  try{await api('/api/google/calendar?id='+encodeURIComponent(id)+'&notify='+(n&&n.checked?1:0),{method:'DELETE'});closeModal();toast('Compromisso excluído');calReload()}catch(e){toast('Não consegui excluir: '+e.message);b.disabled=false}}
+/* confirmação antes de enviar qualquer mensagem ao cliente */
+let CONFIRM_CB=null;
+function confirmSend({canal,para,assunto,texto}){return new Promise(res=>{CONFIRM_CB=res;
+ modal(`<h3 style="margin:0 0 4px">Confirmar envio?</h3><p class="muted" style="margin:0 0 12px;font-size:13px">Revise antes de enviar. ${/whats/i.test(canal)?'O WhatsApp vai abrir com a mensagem pronta.':'O e-mail sai da sua conta Gmail.'}</p>
+ <div style="font-size:13.5px;line-height:1.8"><div><b>Canal:</b> ${esc(canal)}</div><div><b>Para:</b> ${esc(para||'—')}</div>${assunto?`<div><b>Assunto:</b> ${esc(assunto)}</div>`:''}</div>
+ <div style="margin-top:10px;border:1px solid var(--line);border-radius:12px;padding:12px;max-height:260px;overflow:auto;white-space:pre-wrap;font-size:13px;background:var(--soft)">${esc(texto||'')}</div>
+ <div class="row" style="margin-top:14px;justify-content:flex-end"><button class="btn" onclick="confirmDone(false)">Cancelar</button><button class="btn pri" id="cf_ok" onclick="confirmDone(true)"><i data-lucide="send"></i>Confirmar envio</button></div>`);
+ setTimeout(()=>{const b=document.getElementById('cf_ok');if(b)b.focus()},50)})}
+function confirmDone(ok){const cb=CONFIRM_CB;CONFIRM_CB=null;closeModal();if(cb)cb(ok)}
+function waGo(id){const d=D.find(x=>x.id===id),txt=document.getElementById('ftxt').value,ph=(d.tel||'').replace(/\D/g,'');
+ confirmSend({canal:'WhatsApp',para:(d.p||d.e)+' · '+d.tel,texto:txt}).then(ok=>{if(!ok)return;window.open(`https://wa.me/${ph.startsWith('55')?ph:'55'+ph}?text=${encodeURIComponent(txt)}`,'_blank');sent.add(id);setTimeout(render,300)})}
 /* ============ SUPABASE: carregar e gravar ============ */
 let LIVE=false;
 const fmtD=d=>d?d.slice(8,10)+'/'+d.slice(5,7):'—';
