@@ -381,6 +381,14 @@ summary::before{content:"›";display:inline-block;transition:transform .15s;fon
 details[open] summary::before{transform:rotate(90deg)}
 @media (max-width:980px){.cx{grid-template-columns:1fr}.cxl{position:static}.sigs{grid-template-columns:1fr}}
 
+/* gerente comercial IA */
+.gm{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+.gmchat{display:flex;flex-direction:column;height:calc(100vh - 190px);min-height:460px}
+.gmchat .msgs{flex:1;max-height:none;min-height:0;margin-bottom:12px;padding-right:4px}
+.gmchat .msg{font-size:14px;line-height:1.55;max-width:80%}
+.gmempty{margin:auto;text-align:center;max-width:420px;display:flex;flex-direction:column;align-items:center}
+.gmk{display:grid;grid-template-columns:1fr 1fr;gap:10px}.gmk div{background:var(--soft);border-radius:10px;padding:10px}.gmk small{display:block;color:var(--muted);font-size:11.5px}.gmk b{font-size:17px}
+@media(max-width:900px){.gm{grid-template-columns:1fr}.gmchat{height:70vh}}
 /* lista de conversas com scroll próprio */
 .cxl{max-height:calc(100vh - 100px);display:flex;flex-direction:column}
 .cxscroll{overflow-y:auto;flex:1;min-height:0;padding-right:4px;margin-right:-4px}
@@ -463,6 +471,7 @@ const PAGES=[
  ['GERAL'],
  ['dashboard','Dashboard','layout-dashboard'],
  ['pipeline','Pipeline','kanban-square'],
+ ['gerente','Gerente comercial IA','bot'],
  ['metas','Metas','target'],
  ['graficos','Gráficos e lógicas','bar-chart-3'],
  ['COMUNICAÇÃO'],
@@ -530,24 +539,31 @@ function pDashboard(){
   <div class="card"><h3><i data-lucide="calendar-check" style="color:var(--amber)"></i>Fechamento próximo</h3><div class="list">
    ${close.slice(0,5).map(d=>`<div class="li"><div><div class="t">${d.e} · ${d.p}</div><div class="d">${d.s} · ${d.pr}% prob · próximo: ${d.nx}</div></div><div class="r">${fmt(d.v)}</div></div>`).join('')}</div></div>
  </div>
- <div class="card"><h3><span class="av" style="width:28px;height:28px;background:var(--violet-soft);color:var(--violet)"><i data-lucide="sparkles" style="width:14px"></i></span>Gerente comercial IA<span class="sp"></span><span class="muted" style="font-size:12px;font-weight:400">Análise em tempo real do seu CRM</span></h3>
-  <div class="chips" id="aichips">${['Quais negócios priorizar hoje?','Como está minha conversão?','Quem está esfriando?','Plano de ação para bater a meta'].map(q=>`<button class="chip" onclick="ask(this.textContent)">${q}</button>`).join('')}</div>
-  <div class="chat"><div class="msgs" id="msgs"><div class="msg a">Olá, Maykom. Tenho acesso aos dados do seu CRM. Pergunte sobre pipeline, metas ou follow-ups.</div></div>
-  <form class="row" onsubmit="event.preventDefault();const i=document.getElementById('aiq');if(i.value.trim()){ask(i.value);i.value=''}"><input type="text" id="aiq" placeholder="Pergunte ao gerente IA sobre seu pipeline…"><button class="btn pri"><i data-lucide="send"></i></button></form></div>
- </div>`;
+`;
 }
-let CHAT=[];
+let CHAT=[],CHATLOG=[];
+const mdl=t=>esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/^\s*[-*•]\s+/gm,'• ').replace(/^#{1,4}\s*(.+)$/gm,'<b>$1</b>');
+function pGerente(){const o=open(),hot=o.filter(d=>d.sc>=80),stale=o.filter(d=>d.la>7),won_=sum(won(),d=>d.v),pct=Math.round(won_/META_MES*100);
+ const G=[['Hoje',['Quais negócios priorizar hoje?','Quem está esfriando e como reativar?','Quais follow-ups estão atrasados?']],['Meta',['Plano de ação para bater a meta do mês','Quanto falta para a meta e com quais negócios chego lá?','Qual a previsão de fechamento do mês?']],['Pipeline',['Como está minha conversão por etapa?','Onde o funil está travando?','Quais negócios têm maior risco?']],['Reuniões',['Resuma as reuniões da semana','Quais objeções mais aparecem nas reuniões?','Quais clientes demonstraram sinal de compra?']]];
+ return `<div class="ph"><div><h1>Gerente comercial IA</h1><p>Converse com o Gemini sobre o seu pipeline, metas, reuniões e follow-ups. Ele responde só com os dados do CRM.</p></div><div class="sp"></div>${CHATLOG.length?'<button class="btn" onclick="CHAT=[];CHATLOG=[];render()"><i data-lucide="eraser"></i>Nova conversa</button>':''}</div>
+ <div class="gm"><div class="card gmchat"><div class="msgs" id="msgs">${CHATLOG.length?CHATLOG.map(x=>`<div class="msg ${x.r}">${x.r==='u'?esc(x.t):mdl(x.t)}</div>`).join(''):`<div class="gmempty"><span class="av" style="width:52px;height:52px;background:var(--violet-soft);color:var(--violet)"><i data-lucide="bot"></i></span><h3 style="margin:10px 0 4px">Olá! Sou seu gerente comercial.</h3><p class="muted" style="margin:0">Tenho acesso aos negócios, atividades, metas e reuniões analisadas. Escolha uma pergunta ao lado ou escreva a sua.</p></div>`}</div>
+  <form class="row" style="gap:8px" onsubmit="event.preventDefault();const i=document.getElementById('aiq');if(i.value.trim()){ask(i.value);i.value=''}"><input type="text" id="aiq" placeholder="Pergunte sobre pipeline, metas, reuniões ou follow-ups…" aria-label="Pergunta"><button class="btn pri" aria-label="Enviar"><i data-lucide="send"></i></button></form></div>
+ <div class="grid" style="align-content:start;gap:14px">
+  <div class="card"><h3>Agora no CRM</h3><div class="gmk"><div><small>Pipeline aberto</small><b>${fmt(sum(o,d=>d.v))}</b></div><div><small>Meta do mês</small><b>${pct}%</b></div><div><small>Quentes</small><b style="color:var(--red)">${hot.length}</b></div><div><small>Esfriando</small><b style="color:var(--amber)">${stale.length}</b></div></div></div>
+  ${G.map(([g,qs])=>`<div class="card"><h3>${g}</h3><div class="chips" style="flex-direction:column;align-items:stretch">${qs.map(q=>`<button class="chip" style="text-align:left;white-space:normal" onclick="ask(this.textContent)">${q}</button>`).join('')}</div></div>`).join('')}
+ </div></div>`}
 async function ask(q){
- const m=document.getElementById('msgs');m.insertAdjacentHTML('beforeend',`<div class="msg u">${q.replace(/</g,'&lt;')}</div>`);m.scrollTop=m.scrollHeight;
+ if(cur()!=='gerente'){go('gerente');await new Promise(r=>setTimeout(r,80))}
+ const m=document.getElementById('msgs');const em=m.querySelector('.gmempty');if(em)em.remove();CHATLOG.push({r:'u',t:q});m.insertAdjacentHTML('beforeend',`<div class="msg u">${q.replace(/</g,'&lt;')}</div>`);m.scrollTop=m.scrollHeight;
  if(typeof api==='function'&&typeof sb!=='undefined'){const typing=document.createElement('div');typing.className='msg a';typing.textContent='Analisando seus dados…';m.appendChild(typing);m.scrollTop=m.scrollHeight;
   CHAT.push({role:'user',text:q});
-  try{const j=await api('/api/ai/chat',{method:'POST',body:JSON.stringify({messages:CHAT})});CHAT.push({role:'model',text:j.text});typing.textContent=j.text;m.scrollTop=m.scrollHeight;return}
-  catch(e){CHAT.pop();typing.remove();if(!/GEMINI_API_KEY/.test(e.message)){m.insertAdjacentHTML('beforeend',`<div class="msg a">Não consegui falar com o Gemini: ${esc(e.message)}</div>`);return}}}
+  try{const j=await api('/api/ai/chat',{method:'POST',body:JSON.stringify({messages:CHAT})});CHAT.push({role:'model',text:j.text});CHATLOG.push({r:'a',t:j.text});typing.innerHTML=mdl(j.text);m.scrollTop=m.scrollHeight;return}
+  catch(e){CHAT.pop();typing.remove();if(!/GEMINI_API_KEY/.test(e.message)){CHATLOG.push({r:'a',t:'Não consegui falar com o Gemini: '+e.message});m.insertAdjacentHTML('beforeend',`<div class="msg a">Não consegui falar com o Gemini: ${esc(e.message)}</div>`);return}}}
  const o=open().sort((a,b)=>prio(b)-prio(a));let a;
  if(/prior/i.test(q))a='Os 3 negócios com maior prioridade hoje:\n'+o.slice(0,3).map((d,i)=>`${i+1}. ${d.e} (${fmt(d.v)}) · ${d.nx}`).join('\n');
  else if(/esfri/i.test(q))a='Esfriando (sem atividade há mais de 7 dias):\n'+open().filter(d=>d.la>7).map(d=>`• ${d.e}: ${d.la} dias, ${fmt(d.v)}`).join('\n');
  else a='Para respostas completas, preencha a chave do Gemini em Integrações.';
- setTimeout(()=>{m.insertAdjacentHTML('beforeend',`<div class="msg a">${a}</div>`);m.scrollTop=m.scrollHeight},300);
+ CHATLOG.push({r:'a',t:a});setTimeout(()=>{m.insertAdjacentHTML('beforeend',`<div class="msg a">${esc(a)}</div>`);m.scrollTop=m.scrollHeight},300);
 }
 function cDashboard(){
  const blue=css('--blue');
@@ -952,7 +968,7 @@ function isDark(){const t=document.documentElement.getAttribute('data-theme');re
 function themeIcon(){const b=document.getElementById('themeBtn');if(!b)return;b.innerHTML=`<i data-lucide="${isDark()?'sun':'moon'}"></i>`;b.title=isDark()?'Mudar para tema claro':'Mudar para tema escuro';icons()}
 function toggleTheme(){const n=isDark()?'light':'dark';document.documentElement.setAttribute('data-theme',n);try{localStorage.setItem('crmTheme',n)}catch(e){}render();themeIcon()}
 /* ============ ROTEADOR ============ */
-const R={dashboard:[pDashboard,cDashboard],pipeline:[pPipeline,cPipeline],emails:[()=>GOOGLE_ON?pEmailsLive():pEmails()],agenda:[pAgenda],conversas:[()=>GOOGLE_ON?pConversasLive():pConversas()],followup:[()=>GOOGLE_ON?pFollowupLive():pFollowup()],metas:[pMetas,upd],graficos:[pGraficos,cGraficos],prazos:[pPrazos],atividades:[pAtividades,cAtividades],integracoes:[pIntegracoes]};
+const R={dashboard:[pDashboard,cDashboard],gerente:[pGerente,()=>{const m=document.getElementById('msgs');if(m)m.scrollTop=m.scrollHeight;const i=document.getElementById('aiq');if(i)i.focus()}],pipeline:[pPipeline,cPipeline],emails:[()=>GOOGLE_ON?pEmailsLive():pEmails()],agenda:[pAgenda],conversas:[()=>GOOGLE_ON?pConversasLive():pConversas()],followup:[()=>GOOGLE_ON?pFollowupLive():pFollowup()],metas:[pMetas,upd],graficos:[pGraficos,cGraficos],prazos:[pPrazos],atividades:[pAtividades,cAtividades],integracoes:[pIntegracoes]};
 function cur(){const h=location.hash.slice(1);return R[h]?h:'dashboard'}
 function render(){
  const c=cur();charts.forEach(x=>x.destroy());charts=[];chartDefaults();
