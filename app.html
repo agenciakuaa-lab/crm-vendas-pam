@@ -698,9 +698,9 @@ function pConversas(){
    ${CV.map((x,i)=>{const dd=D.find(y=>y.id===x.id),cc=({g:'green',a:'amber',b:'blue'})[x.worth[1]];return `<button class="cxi ${i===cSel&&!GTRSEL?'on':''}" onclick="GTRSEL=null;cSel=${i};render()">
     <div class="av">${ini(x.n)}</div><div style="min-width:0;text-align:left"><b>${x.n}</b><span>${x.e} · ${x.when}</span></div>
     <span class="sc" style="color:var(--${cc});background:var(--${cc}-soft)">${x.worth[2]}</span></button>`}).join('')}
-  ${trList()}
+  ${trList()}${sbList()}
   </div>
-  ${GTRSEL?trView():`  <div class="cxd">
+  ${GTRSEL?(String(GTRSEL).startsWith('sb:')?sbView():trView()):`  <div class="cxd">
    <div class="cxh"><div class="av" style="width:44px;height:44px;font-size:15px">${ini(c.n)}</div><div><h2>${c.n}</h2><span class="muted">${c.e} · ${c.type}, ${c.dur} · ${c.when}</span></div><span class="sp" style="flex:1"></span><b style="font-size:16px">${fmt(d.v)}</b></div>
 
    <div class="verdict" style="background:var(--${col}-soft)">
@@ -1032,13 +1032,22 @@ function calMonthCounts(){const c={};(GCAL||[]).forEach(e=>{const d=new Date(e.s
 let GTR=null,GTR_ERR=null,GTRSEL=null,GTRTXT={};
 function loadTr(){if(GTR||GTR_ERR)return;api('/api/google/transcripts').then(j=>{GTR=j.files}).catch(e=>{GTR_ERR=e.message}).finally(()=>{if(cur()==='conversas')render()})}
 function trList(){if(!GOOGLE_ON)return '';loadTr();
- return `<div class="muted" style="font-size:11.5px;font-weight:600;margin:14px 0 6px">DO GOOGLE DRIVE (MEET)</div>${GTR_ERR?`<div class="note" style="margin:0">${esc(GTR_ERR)}</div>`:!GTR?'<div class="muted" style="font-size:12.5px">Buscando transcrições…</div>':GTR.length?GTR.map(f=>`<button class="cxi ${GTRSEL===f.id?'on':''}" onclick="openTr('${f.id}')"><div class="av"><i data-lucide="file-text" style="width:16px"></i></div><div style="min-width:0;text-align:left"><b>${esc(f.name.replace(/\\s*-\\s*(Transcri[çc][ãa]o|Transcript).*$/i,''))}</b><span>${f.kind} · ${new Date(f.modified).toLocaleDateString('pt-BR')}</span></div></button>`).join(''):'<div class="muted" style="font-size:12.5px">Nenhuma transcrição nos últimos 60 dias.</div>'}`}
+ return `<div class="muted" style="font-size:11.5px;font-weight:600;margin:14px 0 6px">GEMINI · MEET (GOOGLE DRIVE)</div>${GTR_ERR?`<div class="note" style="margin:0">${esc(GTR_ERR)}</div>`:!GTR?'<div class="muted" style="font-size:12.5px">Buscando transcrições…</div>':GTR.length?GTR.map(f=>`<button class="cxi ${GTRSEL===f.id?'on':''}" onclick="openTr('${f.id}')"><div class="av"><i data-lucide="file-text" style="width:16px"></i></div><div style="min-width:0;text-align:left"><b>${esc(f.name.replace(/\\s*-\\s*(Transcri[çc][ãa]o|Transcript).*$/i,''))}</b><span>${f.kind} · ${new Date(f.modified).toLocaleDateString('pt-BR')}</span></div></button>`).join(''):'<div class="muted" style="font-size:12.5px">Nenhuma transcrição nos últimos 60 dias.</div>'}`}
 function openTr(id){GTRSEL=id;if(!GTRTXT[id]){GTRTXT[id]='…';api('/api/google/transcripts?id='+id).then(j=>{GTRTXT[id]=j.text}).catch(e=>{GTRTXT[id]='Erro: '+e.message}).finally(()=>render())}render()}
 function trView(){const f=(GTR||[]).find(x=>x.id===GTRSEL);if(!f)return '';const t=GTRTXT[f.id];
  return `<div class="cxd"><div class="cxh"><div class="av" style="width:44px;height:44px"><i data-lucide="file-text"></i></div><div><h2>${esc(f.name)}</h2><span class="muted">${f.kind} · Google Drive · ${new Date(f.modified).toLocaleString('pt-BR')}</span></div><span class="sp" style="flex:1"></span><a class="btn" href="${f.link}" target="_blank" rel="noopener"><i data-lucide="external-link"></i>Abrir no Drive</a></div>
  <div class="note" style="margin:0"><b>Resumo, termômetro e próximo passo</b> são gerados pela IA quando a chave do Claude ou do Gemini estiver preenchida na Vercel.</div>
  <section><h4>Texto</h4><div class="mbody" style="max-height:620px;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:16px">${t==='…'||!t?'Carregando…':esc(t)}</div></section></div>`}
 
+let GSB=null,GSB_ERR=null;
+function loadSb(){if(GSB||GSB_ERR)return;api('/api/google/gmail?source=salesbud').then(j=>{GSB=j.messages}).catch(e=>{GSB_ERR=e.message}).finally(()=>{if(cur()==='conversas')render()})}
+function sbList(){if(!GOOGLE_ON)return '';loadSb();
+ return `<div class="muted" style="font-size:11.5px;font-weight:600;margin:14px 0 6px">SALESBUD (E-MAIL)</div>${GSB_ERR?`<div class="note" style="margin:0">${esc(GSB_ERR)}</div>`:!GSB?'<div class="muted" style="font-size:12.5px">Buscando e-mails do SalesBud…</div>':GSB.length?GSB.map(f=>`<button class="cxi ${GTRSEL==='sb:'+f.id?'on':''}" onclick="openSb('${f.id}')"><div class="av" style="background:var(--amber-soft);color:var(--amber)"><i data-lucide="mic" style="width:16px"></i></div><div style="min-width:0;text-align:left"><b>${esc(f.subject)}</b><span>SalesBud · ${new Date(f.date).toLocaleDateString('pt-BR')}</span></div></button>`).join(''):'<div class="muted" style="font-size:12.5px">Nenhum e-mail do SalesBud nos últimos 60 dias.</div>'}`}
+function openSb(id){GTRSEL='sb:'+id;if(!GTRTXT['sb:'+id]){GTRTXT['sb:'+id]='…';api('/api/google/gmail?id='+id).then(j=>{GTRTXT['sb:'+id]=j.body}).catch(e=>{GTRTXT['sb:'+id]='Erro: '+e.message}).finally(()=>render())}render()}
+function sbView(){const id=GTRSEL.slice(3),f=(GSB||[]).find(x=>x.id===id);if(!f)return '';const t=GTRTXT[GTRSEL];
+ return `<div class="cxd"><div class="cxh"><div class="av" style="width:44px;height:44px;background:var(--amber-soft);color:var(--amber)"><i data-lucide="mic"></i></div><div><h2>${esc(f.subject)}</h2><span class="muted">SalesBud · recebido por e-mail · ${new Date(f.date).toLocaleString('pt-BR')}</span></div><span class="sp" style="flex:1"></span><a class="btn" href="https://mail.google.com/mail/u/0/#all/${f.threadId}" target="_blank" rel="noopener"><i data-lucide="external-link"></i>Abrir no Gmail</a></div>
+ <div class="note" style="margin:0">O SalesBud já manda resumo e insights. Com a chave do Claude ou do Gemini, o CRM cruza isso com o negócio e calcula termômetro e próximo passo.</div>
+ <section><h4>Conteúdo</h4><div class="mbody" style="max-height:620px;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:16px">${t==='…'||!t?'Carregando…':esc(t)}</div></section></div>`}
 /* ============ SUPABASE: carregar e gravar ============ */
 let LIVE=false;
 const fmtD=d=>d?d.slice(8,10)+'/'+d.slice(5,7):'—';

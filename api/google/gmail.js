@@ -27,7 +27,14 @@ async function ctx(request) {
 export async function GET(request) {
   try {
     const { user, token } = await ctx(request);
-    const id = new URL(request.url).searchParams.get('id');
+    const sp = new URL(request.url).searchParams;
+    const id = sp.get('id');
+    if (sp.get('source') === 'salesbud') {
+      const q = encodeURIComponent('from:salesbud newer_than:60d');
+      const list = await gapi(token, `${G}/messages?maxResults=30&q=${q}`);
+      const items = await Promise.all((list.messages || []).map((m) => gapi(token, `${G}/messages/${m.id}?format=metadata&metadataHeaders=Subject&metadataHeaders=From`).catch(() => null)));
+      return json({ messages: items.filter(Boolean).map((m) => ({ id: m.id, threadId: m.threadId, subject: hdr(m, 'Subject') || 'Reunião SalesBud', snippet: m.snippet, date: new Date(Number(m.internalDate)).toISOString() })) });
+    }
     if (id) {
       const m = await gapi(token, `${G}/messages/${id}?format=full`);
       return json({ id, threadId: m.threadId, body: decodeBody(m.payload).slice(0, 20000), messageId: hdr(m, 'Message-ID') });
