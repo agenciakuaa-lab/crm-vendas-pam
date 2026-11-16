@@ -70,6 +70,7 @@ export async function GET(request) {
     });
     return json({ messages: out, total: out.length, strategic: out.filter((x) => x.strategic).length });
   } catch (e) {
+    console.log('[google]', new URL(request.url).pathname, e.status || 500, e.message);
     return json({ error: e.message }, e.status || 500);
   }
 }
@@ -94,6 +95,7 @@ export async function POST(request) {
     const sent = await gapi(token, `${G}/messages/send`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ raw, ...(threadId ? { threadId } : {}) }) });
     return json({ ok: true, id: sent.id, threadId: sent.threadId });
   } catch (e) {
+    console.log('[google]', new URL(request.url).pathname, e.status || 500, e.message);
     return json({ error: e.message }, e.status || 500);
   }
 }

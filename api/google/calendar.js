@@ -24,6 +24,7 @@ export async function GET(request) {
     }));
     return json({ events });
   } catch (e) {
+    console.log('[google]', new URL(request.url).pathname, e.status || 500, e.message);
     return json({ error: e.message }, e.status || 500);
   }
 }

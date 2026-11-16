@@ -18,7 +18,8 @@ export async function POST(request) {
   if (!cid || !env('GOOGLE_CLIENT_SECRET')) return json({ error: 'Preencha GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET na Vercel' }, 503);
   if (!stateSecret) return json({ error: 'OAUTH_STATE_SECRET não configurado' }, 503);
   const user = await userFromRequest(request);
-  if (!user) return json({ error: 'Faça login no CRM primeiro' }, 401);
+  if (!user) { console.log('[oauth/google] início sem login válido'); return json({ error: 'Faça login no CRM primeiro' }, 401); }
+  console.log('[oauth/google] início para', user.email);
   const payload = `${user.id}.${Date.now()}`;
   const state = `${Buffer.from(payload).toString('base64url')}.${hmacHex(stateSecret, payload)}`;
   const q = new URLSearchParams({
@@ -31,7 +32,7 @@ export async function POST(request) {
 
 export async function GET(request) {
   const q = new URL(request.url).searchParams;
-  const back = (msg) => Response.redirect(`${new URL(request.url).origin}/app?google=${encodeURIComponent(msg)}#integracoes`, 302);
+  const back = (msg) => { console.log('[oauth/google] resultado:', msg); return Response.redirect(`${new URL(request.url).origin}/app?google=${encodeURIComponent(msg)}#integracoes`, 302); };
   if (q.get('error')) return back(q.get('error'));
   const [b64, sig] = (q.get('state') || '').split('.');
   const payload = b64 ? Buffer.from(b64, 'base64url').toString() : '';
@@ -64,6 +65,7 @@ export async function GET(request) {
       body: JSON.stringify({ owner_id: userId, provider: 'google', status: 'on', last_sync_at: new Date().toISOString() })
     });
   } catch (e) {
+    console.log('[oauth/google] erro ao gravar:', e.message);
     return back('erro_banco');
   }
   return back('ok');

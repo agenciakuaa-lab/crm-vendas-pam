@@ -24,6 +24,7 @@ export async function GET(request) {
     const j = await gapi(token, `https://www.googleapis.com/drive/v3/files?${p}`);
     return json({ files: (j.files || []).map((f) => ({ id: f.id, name: f.name, modified: f.modifiedTime, link: f.webViewLink, kind: /gemini|anota/i.test(f.name) ? 'Anotações do Gemini' : 'Transcrição' })) });
   } catch (e) {
+    console.log('[google]', new URL(request.url).pathname, e.status || 500, e.message);
     return json({ error: e.message }, e.status || 500);
   }
 }
