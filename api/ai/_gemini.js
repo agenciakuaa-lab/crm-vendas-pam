@@ -23,7 +23,8 @@ export async function modelList() {
 
 const busy = (status, msg) => status === 429 || status === 503 || status === 500 || /high demand|overloaded|unavailable|try again/i.test(msg || '');
 
-export async function gemini({ system, contents, json = false }) {
+export async function gemini({ system, contents, json = false, deadline = 50000 }) {
+  const t0 = Date.now();
   const key = env('GEMINI_API_KEY');
   if (!key) throw Object.assign(new Error('Preencha GEMINI_API_KEY na Vercel'), { status: 503 });
   const body = JSON.stringify({
@@ -33,9 +34,15 @@ export async function gemini({ system, contents, json = false }) {
   });
   let lastErr = 'sem resposta';
   for (const model of await modelList()) {
+    if (deadline - (Date.now() - t0) < 4000) break;
     for (let attempt = 0; attempt < 2; attempt++) {
-      const r = await fetch(`${BASE}/models/${model}:generateContent`, { method: 'POST', headers: { 'x-goog-api-key': key, 'content-type': 'application/json' }, body });
-      const j = await r.json().catch(() => ({}));
+      const left = deadline - (Date.now() - t0);
+      if (left < 4000) { lastErr = 'tempo esgotado'; break; }
+      let r, j;
+      try {
+        r = await fetch(`${BASE}/models/${model}:generateContent`, { method: 'POST', headers: { 'x-goog-api-key': key, 'content-type': 'application/json' }, body, signal: AbortSignal.timeout(Math.min(30000, left)) });
+        j = await r.json().catch(() => ({}));
+      } catch (e) { lastErr = `${model} demorou demais`; break; }
       if (r.ok) {
         const text = (j.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('').trim();
         if (text) return { text, model };

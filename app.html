@@ -389,6 +389,33 @@ details[open] summary::before{transform:rotate(90deg)}
 .gmempty{margin:auto;text-align:center;max-width:420px;display:flex;flex-direction:column;align-items:center}
 .gmk{display:grid;grid-template-columns:1fr 1fr;gap:10px}.gmk div{background:var(--soft);border-radius:10px;padding:10px}.gmk small{display:block;color:var(--muted);font-size:11.5px}.gmk b{font-size:17px}
 @media(max-width:900px){.gm{grid-template-columns:1fr}.gmchat{height:70vh}}
+/* gerente comercial IA — estilo Gemini */
+.gpage{display:flex;flex-direction:column;height:calc(100vh - 110px);margin:-8px 0 -24px}
+.gtop{display:flex;justify-content:flex-end;padding-bottom:6px}
+.gscroll{flex:1;overflow-y:auto;min-height:0}
+.gcol{max-width:780px;margin:0 auto;padding:12px 16px 24px;display:flex;flex-direction:column;gap:26px}
+.ghello{justify-content:center;min-height:100%;gap:8px;padding-top:6vh}
+.ghello h1{font-size:46px;font-weight:500;margin:0;letter-spacing:-.5px}
+.ghello h2{font-size:30px;font-weight:400;margin:0 0 28px;color:var(--muted)}
+.ggrad{background:linear-gradient(74deg,#4285f4 0,#9b72cb 30%,#d96570 60%,#d96570 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.gsug{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.gsug button{position:relative;text-align:left;background:var(--soft);border:0;border-radius:16px;padding:16px 16px 44px;font:inherit;font-size:14px;color:var(--text);cursor:pointer;min-height:120px;transition:background .15s}
+.gsug button:hover{background:var(--line)}.gsug button svg{position:absolute;right:12px;bottom:12px;width:34px;height:34px;padding:8px;border-radius:50%;background:var(--card);color:var(--text)}
+.gq{display:flex;justify-content:flex-end}.gq div{background:var(--soft);padding:12px 18px;border-radius:22px 4px 22px 22px;max-width:75%;white-space:pre-wrap;font-size:15px;line-height:1.5}
+.ga{display:flex;gap:16px;align-items:flex-start}
+.gstar{flex:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#4285f4,#9b72cb,#d96570);color:#fff}.gstar svg{width:17px;height:17px}
+.gbody{flex:1;min-width:0;padding-top:4px}
+.gmd{font-size:15px;line-height:1.7}.gmd p{margin:0 0 10px}.gmd h4{font-size:16px;margin:16px 0 6px;text-transform:none;letter-spacing:0;color:var(--text)}.gmd ul,.gmd ol{margin:0 0 12px;padding-left:22px}.gmd li{margin:3px 0}.gmd code{background:var(--soft);padding:1px 5px;border-radius:5px}
+.gact{display:flex;gap:2px;margin-top:2px}.gact .iconbtn{width:32px;height:32px}.gact svg{width:16px;height:16px}
+.gload{display:flex;flex-direction:column;gap:9px;padding-top:6px}.gload span{height:14px;border-radius:7px;background:linear-gradient(90deg,var(--soft) 25%,#c2d7fb 50%,var(--soft) 75%);background-size:200% 100%;animation:gsh 1.4s linear infinite}.gload span:nth-child(2){width:85%}.gload span:nth-child(3){width:60%}
+@keyframes gsh{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.gin{max-width:780px;width:100%;margin:0 auto;padding:6px 16px 0}
+.gbox{display:flex;align-items:flex-end;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:28px;padding:10px 10px 10px 22px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+.gbox:focus-within{border-color:var(--blue)}
+.gbox textarea{flex:1;border:0;outline:0;background:transparent;resize:none;font:inherit;font-size:15px;line-height:1.5;padding:7px 0;min-height:0;max-height:180px;color:var(--text);box-shadow:none}
+.gsend{flex:none;width:40px;height:40px;border-radius:50%;border:0;background:var(--blue);color:#fff;display:grid;place-items:center;cursor:pointer}.gsend:disabled{background:var(--soft);color:var(--muted)}.gsend svg{width:19px}
+.gnote{text-align:center;font-size:11.5px;color:var(--muted);padding:8px 0 4px}
+@media(max-width:800px){.gsug{grid-template-columns:1fr 1fr}.ghello h1{font-size:34px}.ghello h2{font-size:22px}}
 /* lista de conversas com scroll próprio */
 .cxl{max-height:calc(100vh - 100px);display:flex;flex-direction:column}
 .cxscroll{overflow-y:auto;flex:1;min-height:0;padding-right:4px;margin-right:-4px}
@@ -541,30 +568,35 @@ function pDashboard(){
  </div>
 `;
 }
-let CHAT=[],CHATLOG=[];
-const mdl=t=>esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/^\s*[-*•]\s+/gm,'• ').replace(/^#{1,4}\s*(.+)$/gm,'<b>$1</b>');
-function pGerente(){const o=open(),hot=o.filter(d=>d.sc>=80),stale=o.filter(d=>d.la>7),won_=sum(won(),d=>d.v),pct=Math.round(won_/META_MES*100);
- const G=[['Hoje',['Quais negócios priorizar hoje?','Quem está esfriando e como reativar?','Quais follow-ups estão atrasados?']],['Meta',['Plano de ação para bater a meta do mês','Quanto falta para a meta e com quais negócios chego lá?','Qual a previsão de fechamento do mês?']],['Pipeline',['Como está minha conversão por etapa?','Onde o funil está travando?','Quais negócios têm maior risco?']],['Reuniões',['Resuma as reuniões da semana','Quais objeções mais aparecem nas reuniões?','Quais clientes demonstraram sinal de compra?']]];
- return `<div class="ph"><div><h1>Gerente comercial IA</h1><p>Converse com o Gemini sobre o seu pipeline, metas, reuniões e follow-ups. Ele responde só com os dados do CRM.</p></div><div class="sp"></div>${CHATLOG.length?'<button class="btn" onclick="CHAT=[];CHATLOG=[];render()"><i data-lucide="eraser"></i>Nova conversa</button>':''}</div>
- <div class="gm"><div class="card gmchat"><div class="msgs" id="msgs">${CHATLOG.length?CHATLOG.map(x=>`<div class="msg ${x.r}">${x.r==='u'?esc(x.t):mdl(x.t)}</div>`).join(''):`<div class="gmempty"><span class="av" style="width:52px;height:52px;background:var(--violet-soft);color:var(--violet)"><i data-lucide="bot"></i></span><h3 style="margin:10px 0 4px">Olá! Sou seu gerente comercial.</h3><p class="muted" style="margin:0">Tenho acesso aos negócios, atividades, metas e reuniões analisadas. Escolha uma pergunta ao lado ou escreva a sua.</p></div>`}</div>
-  <form class="row" style="gap:8px" onsubmit="event.preventDefault();const i=document.getElementById('aiq');if(i.value.trim()){ask(i.value);i.value=''}"><input type="text" id="aiq" placeholder="Pergunte sobre pipeline, metas, reuniões ou follow-ups…" aria-label="Pergunta"><button class="btn pri" aria-label="Enviar"><i data-lucide="send"></i></button></form></div>
- <div class="grid" style="align-content:start;gap:14px">
-  <div class="card"><h3>Agora no CRM</h3><div class="gmk"><div><small>Pipeline aberto</small><b>${fmt(sum(o,d=>d.v))}</b></div><div><small>Meta do mês</small><b>${pct}%</b></div><div><small>Quentes</small><b style="color:var(--red)">${hot.length}</b></div><div><small>Esfriando</small><b style="color:var(--amber)">${stale.length}</b></div></div></div>
-  ${G.map(([g,qs])=>`<div class="card"><h3>${g}</h3><div class="chips" style="flex-direction:column;align-items:stretch">${qs.map(q=>`<button class="chip" style="text-align:left;white-space:normal" onclick="ask(this.textContent)">${q}</button>`).join('')}</div></div>`).join('')}
- </div></div>`}
-async function ask(q){
- if(cur()!=='gerente'){go('gerente');await new Promise(r=>setTimeout(r,80))}
- const m=document.getElementById('msgs');const em=m.querySelector('.gmempty');if(em)em.remove();CHATLOG.push({r:'u',t:q});m.insertAdjacentHTML('beforeend',`<div class="msg u">${q.replace(/</g,'&lt;')}</div>`);m.scrollTop=m.scrollHeight;
- if(typeof api==='function'&&typeof sb!=='undefined'){const typing=document.createElement('div');typing.className='msg a';typing.textContent='Analisando seus dados…';m.appendChild(typing);m.scrollTop=m.scrollHeight;
-  CHAT.push({role:'user',text:q});
-  try{const j=await api('/api/ai/chat',{method:'POST',body:JSON.stringify({messages:CHAT})});CHAT.push({role:'model',text:j.text});CHATLOG.push({r:'a',t:j.text});typing.innerHTML=mdl(j.text);m.scrollTop=m.scrollHeight;return}
-  catch(e){CHAT.pop();typing.remove();if(!/GEMINI_API_KEY/.test(e.message)){CHATLOG.push({r:'a',t:'Não consegui falar com o Gemini: '+e.message});m.insertAdjacentHTML('beforeend',`<div class="msg a">Não consegui falar com o Gemini: ${esc(e.message)}</div>`);return}}}
- const o=open().sort((a,b)=>prio(b)-prio(a));let a;
- if(/prior/i.test(q))a='Os 3 negócios com maior prioridade hoje:\n'+o.slice(0,3).map((d,i)=>`${i+1}. ${d.e} (${fmt(d.v)}) · ${d.nx}`).join('\n');
- else if(/esfri/i.test(q))a='Esfriando (sem atividade há mais de 7 dias):\n'+open().filter(d=>d.la>7).map(d=>`• ${d.e}: ${d.la} dias, ${fmt(d.v)}`).join('\n');
- else a='Para respostas completas, preencha a chave do Gemini em Integrações.';
- CHATLOG.push({r:'a',t:a});setTimeout(()=>{m.insertAdjacentHTML('beforeend',`<div class="msg a">${esc(a)}</div>`);m.scrollTop=m.scrollHeight},300);
-}
+let CHAT=[],CHATLOG=[],CHATBUSY=false;
+function mdl(t){const L=esc(String(t||'')).split('\n'),out=[];let list=null;
+ const inl=x=>x.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/(^|[^*])\*([^*\n]+)\*/g,'$1<i>$2</i>').replace(/`([^`]+)`/g,'<code>$1</code>');
+ const close=()=>{if(list){out.push(`</${list}>`);list=null}};
+ for(const raw of L){const l=raw.trimEnd();let m;
+  if(m=l.match(/^\s*#{1,4}\s+(.+)/)){close();out.push(`<h4>${inl(m[1])}</h4>`)}
+  else if(m=l.match(/^\s*[-*•]\s+(.+)/)){if(list!=='ul'){close();out.push('<ul>');list='ul'}out.push(`<li>${inl(m[1])}</li>`)}
+  else if(m=l.match(/^\s*\d+[.)]\s+(.+)/)){if(list!=='ol'){close();out.push('<ol>');list='ol'}out.push(`<li>${inl(m[1])}</li>`)}
+  else if(!l.trim()){close()}
+  else{close();out.push(`<p>${inl(l)}</p>`)}}
+ close();return out.join('')}
+const GSUG=[['target','Plano de ação para bater a meta do mês'],['flame','Quais negócios priorizar hoje?'],['snowflake','Quem está esfriando e como reativar?'],['messages-square','Quais objeções mais aparecem nas reuniões?'],['send','Quais follow-ups estão atrasados?'],['bar-chart-3','Onde o funil está travando?']];
+function gmMsg(x,i){return x.r==='u'?`<div class="gq"><div>${esc(x.t)}</div></div>`:`<div class="ga"><span class="gstar"><i data-lucide="sparkles"></i></span><div class="gbody">${x.t===null?'<div class="gload"><span></span><span></span><span></span></div>':`<div class="gmd">${mdl(x.t)}</div>${x.err?'':`<div class="gact"><button class="iconbtn" title="Copiar" onclick="navigator.clipboard.writeText(CHATLOG[${i}].t);toast('Copiado')"><i data-lucide="copy"></i></button><button class="iconbtn" title="Gerar de novo" onclick="regen(${i})"><i data-lucide="refresh-cw"></i></button></div>`}`}</div></div>`}
+function pGerente(){const first=(CRM_USER&&CRM_USER.name||'').split(' ')[0];
+ return `<div class="gpage">${CHATLOG.length?`<div class="gtop"><button class="btn sm" onclick="if(!CHATBUSY){CHAT=[];CHATLOG=[];render()}"><i data-lucide="square-pen"></i>Nova conversa</button></div>`:''}
+ <div class="gscroll" id="msgs">${CHATLOG.length?`<div class="gcol">${CHATLOG.map(gmMsg).join('')}</div>`:`<div class="gcol ghello"><h1><span class="ggrad">Olá${first?', '+esc(first):''}</span></h1><h2>Como posso ajudar nas suas vendas hoje?</h2>
+  <div class="gsug">${GSUG.map(([ic,q])=>`<button onclick="ask(this.querySelector('span').textContent)"><span>${q}</span><i data-lucide="${ic}"></i></button>`).join('')}</div></div>`}</div>
+ <div class="gin"><form class="gbox" onsubmit="event.preventDefault();gSend()"><textarea id="aiq" rows="1" placeholder="Pergunte ao gerente comercial" aria-label="Pergunta" oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,180)+'px'" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();gSend()}"></textarea><button class="gsend" aria-label="Enviar" ${CHATBUSY?'disabled':''}><i data-lucide="${CHATBUSY?'loader-2':'send-horizontal'}"></i></button></form>
+ <div class="gnote">Gemini · responde com os dados do seu CRM e das reuniões analisadas. Pode cometer erros.</div></div></div>`}
+function gSend(){const i=document.getElementById('aiq');if(i&&i.value.trim()&&!CHATBUSY){const q=i.value;i.value='';ask(q)}}
+function gScroll(){const m=document.getElementById('msgs');if(m)m.scrollTop=m.scrollHeight}
+async function regen(i){if(CHATBUSY)return;const q=[...CHATLOG.slice(0,i)].reverse().find(x=>x.r==='u');if(!q)return;CHATLOG.splice(i,1);CHAT=CHAT.slice(0,-1);CHAT.pop();CHATLOG.splice(CHATLOG.lastIndexOf(q),1);ask(q.t)}
+async function ask(q){if(CHATBUSY)return;q=String(q).trim();if(!q)return;CHATBUSY=true;
+ CHATLOG.push({r:'u',t:q});const a={r:'a',t:null};CHATLOG.push(a);
+ if(cur()!=='gerente')go('gerente');else render();setTimeout(gScroll,30);
+ CHAT.push({role:'user',text:q});
+ try{const j=await api('/api/ai/chat',{method:'POST',body:JSON.stringify({messages:CHAT})});CHAT.push({role:'model',text:j.text});a.t=j.text}
+ catch(e){CHAT.pop();a.err=true;a.t=/GEMINI_API_KEY/.test(e.message)?'Preencha a chave do Gemini em Integrações para eu responder.':/demanda|demorou|tempo/i.test(e.message)?'O Gemini está sobrecarregado agora. Tente de novo em alguns segundos.':'Não consegui falar com o Gemini: '+e.message}
+ CHATBUSY=false;if(cur()==='gerente'){render();setTimeout(gScroll,30);const i=document.getElementById('aiq');if(i)i.focus()}}
 function cDashboard(){
  const blue=css('--blue');
  mk('cRev',{type:'line',data:{labels:[...MESES,'Dez*'],datasets:[
@@ -968,7 +1000,7 @@ function isDark(){const t=document.documentElement.getAttribute('data-theme');re
 function themeIcon(){const b=document.getElementById('themeBtn');if(!b)return;b.innerHTML=`<i data-lucide="${isDark()?'sun':'moon'}"></i>`;b.title=isDark()?'Mudar para tema claro':'Mudar para tema escuro';icons()}
 function toggleTheme(){const n=isDark()?'light':'dark';document.documentElement.setAttribute('data-theme',n);try{localStorage.setItem('crmTheme',n)}catch(e){}render();themeIcon()}
 /* ============ ROTEADOR ============ */
-const R={dashboard:[pDashboard,cDashboard],gerente:[pGerente,()=>{const m=document.getElementById('msgs');if(m)m.scrollTop=m.scrollHeight;const i=document.getElementById('aiq');if(i)i.focus()}],pipeline:[pPipeline,cPipeline],emails:[()=>GOOGLE_ON?pEmailsLive():pEmails()],agenda:[pAgenda],conversas:[()=>GOOGLE_ON?pConversasLive():pConversas()],followup:[()=>GOOGLE_ON?pFollowupLive():pFollowup()],metas:[pMetas,upd],graficos:[pGraficos,cGraficos],prazos:[pPrazos],atividades:[pAtividades,cAtividades],integracoes:[pIntegracoes]};
+const R={dashboard:[pDashboard,cDashboard],gerente:[pGerente,()=>{gScroll();const i=document.getElementById('aiq');if(i&&!CHATBUSY)i.focus()}],pipeline:[pPipeline,cPipeline],emails:[()=>GOOGLE_ON?pEmailsLive():pEmails()],agenda:[pAgenda],conversas:[()=>GOOGLE_ON?pConversasLive():pConversas()],followup:[()=>GOOGLE_ON?pFollowupLive():pFollowup()],metas:[pMetas,upd],graficos:[pGraficos,cGraficos],prazos:[pPrazos],atividades:[pAtividades,cAtividades],integracoes:[pIntegracoes]};
 function cur(){const h=location.hash.slice(1);return R[h]?h:'dashboard'}
 function render(){
  const c=cur();charts.forEach(x=>x.destroy());charts=[];chartDefaults();
@@ -987,7 +1019,9 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',re
 let GOOGLE_ON=false,GMAIL=null,GMAIL_ERR=null,GFOLD='strat',GSEL=0,GBODY={},GCAL=null,GCAL_ERR=null,GMONTH=null;
 async function api(path,opts={}){const {data}=await sb.auth.getSession();const r=await fetch(path,{...opts,headers:{...(opts.headers||{}),Authorization:'Bearer '+(data.session&&data.session.access_token),'content-type':'application/json'}});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||('Erro '+r.status));return j}
 const APICACHE={};
-async function cachedApi(k,path){const c=APICACHE[k];if(c&&Date.now()-c.t<300000)return c.v;const v=await api(path);APICACHE[k]={t:Date.now(),v};return v}
+async function cachedApi(k,path){let c=APICACHE[k];if(!c){try{c=JSON.parse(localStorage.getItem('crmApi:'+k)||'null')}catch(e){}}if(c&&Date.now()-c.t<900000){APICACHE[k]=c;return c.v}
+ const v=await api(path);APICACHE[k]={t:Date.now(),v};try{localStorage.setItem('crmApi:'+k,JSON.stringify(APICACHE[k]))}catch(e){}return v}
+function dropCache(){dropCache();try{Object.keys(localStorage).filter(k=>k.startsWith('crmApi:')).forEach(k=>localStorage.removeItem(k))}catch(e){}}
 async function checkGoogle(){try{const {data}=await sb.from('integrations').select('status').eq('provider','google').maybeSingle();GOOGLE_ON=!!(data&&data.status==='on')}catch(e){GOOGLE_ON=false}}
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const hhmm=iso=>new Date(iso).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:'America/Sao_Paulo'});
@@ -1000,7 +1034,7 @@ function pEmailsLive(){
  if(m&&!GBODY[m.id]){GBODY[m.id]='…';api('/api/google/gmail?id='+m.id).then(j=>{GBODY[m.id]=j.body||m.snippet}).catch(()=>{GBODY[m.id]=m.snippet}).finally(()=>{if(cur()==='emails')render()})}
  const folders=[['all','Todos','inbox'],['replies','Respostas de clientes','reply'],['crm','Contatos do CRM','users'],['new','Novos contatos','user-plus'],['unread','Não lidos','mail']];
  return `<div class="ph"><div><h1>E-mails estratégicos</h1><p>Respostas e mensagens de clientes desde 1º de setembro. Resumos de reunião ficam em Conversas; promoções e notificações ficam de fora.</p></div><div class="sp"></div>
- <span class="pill g"><i data-lucide="check"></i>Gmail conectado</span><button class="btn" onclick="GMAIL=null;GMAIL_ERR=null;GBODY={};delete APICACHE.emails;render()"><i data-lucide="refresh-cw"></i>Atualizar</button></div>
+ <span class="pill g"><i data-lucide="check"></i>Gmail conectado</span><button class="btn" onclick="GMAIL=null;GMAIL_ERR=null;GBODY={};dropCache();render()"><i data-lucide="refresh-cw"></i>Atualizar</button></div>
  ${GMAIL_ERR?`<div class="note" style="margin:0 0 14px;background:var(--red-soft)"><b>Não consegui ler o Gmail:</b> ${esc(GMAIL_ERR)} ${/Conectar/.test(GMAIL_ERR)?'<a style="color:var(--blue);cursor:pointer" onclick="go(\'integracoes\')">Ir para Integrações →</a>':''}</div>`:''}
  <div class="kpis"><div class="kpi"><small>Respostas de clientes</small><div class="v" style="color:var(--blue)">${GMAIL?F.replies.length:'…'}</div></div><div class="kpi"><small>De contatos do CRM</small><div class="v">${GMAIL?F.crm.length:'…'}</div></div><div class="kpi"><small>Não lidos</small><div class="v">${GMAIL?F.unread.length:'…'}</div></div><div class="kpi"><small>Automáticos ignorados</small><div class="v muted">${GMAIL?GHIDDEN:'…'}</div><div class="s">promoções, notificações, newsletters</div></div></div>
  <div class="mail"><div class="fold">${folders.map(f=>`<button class="${GFOLD===f[0]?'on':''}" onclick="GFOLD='${f[0]}';GSEL=0;render()"><i data-lucide="${f[2]}"></i>${f[1]}<span>${GMAIL?F[f[0]].length:''}</span></button>`).join('')}
@@ -1196,7 +1230,7 @@ let SEEN={},SHOWSEEN=false;try{SEEN=JSON.parse(localStorage.getItem('crmSeen')||
 function markSeen(k){SEEN[k]=Date.now();try{localStorage.setItem('crmSeen',JSON.stringify(SEEN))}catch(e){}}
 const vis=k=>SHOWSEEN||!SEEN[k]||GTRSEL===k;
 async function refreshAll(btn){if(btn){btn.disabled=true;btn.innerHTML='<i data-lucide="loader-2"></i>Atualizando…';icons()}
- GMAIL=null;GMAIL_ERR=null;GBODY={};GSB=null;GSB_ERR=null;GTR=null;GTR_ERR=null;GCAL=null;GCAL_ERR=null;GCALM={};ENVST=null;ENVERR=null;for(const k in APICACHE)delete APICACHE[k];
+ GMAIL=null;GMAIL_ERR=null;GBODY={};GSB=null;GSB_ERR=null;GTR=null;GTR_ERR=null;GCAL=null;GCAL_ERR=null;GCALM={};ENVST=null;ENVERR=null;dropCache();
  try{if(LIVE){await loadDeals();await checkGoogle();await loadActs();await loadLeadDays();CONVDB=null;await loadConvDB()}}catch(e){toast('Não consegui atualizar: '+e.message)}
  render();toast('Dados atualizados')}
 function addRefresh(){const ph=document.querySelector('#view .ph');if(!ph||ph.querySelector('[data-refresh]'))return;
@@ -1296,8 +1330,10 @@ function fuSendWa(key){const it=fuItems().find(x=>x.key===key),ph=document.getEl
 /* novas reuniões: verifica a cada 3 min e atualiza as páginas sozinho */
 async function pollNew(){if(!GOOGLE_ON||document.hidden)return;
  try{const before=new Set(convItems().map(x=>x.key));
-  const [sm,tr]=await Promise.all([api('/api/google/gmail?source=summaries').catch(()=>null),api('/api/google/transcripts').catch(()=>null)]);
-  if(sm){GSB=sm.messages;APICACHE.summaries={t:Date.now(),v:sm}}if(tr){GTR=tr.files;APICACHE.transcripts={t:Date.now(),v:tr}}
+  const since=new Date(Date.now()-2*864e5).toLocaleDateString('sv-SE',{timeZone:'America/Sao_Paulo'});
+  const [sm,tr]=await Promise.all([api('/api/google/gmail?source=summaries&since='+since).catch(()=>null),api('/api/google/transcripts').catch(()=>null)]);
+  const keep=(k,v)=>{APICACHE[k]={t:Date.now(),v};try{localStorage.setItem('crmApi:'+k,JSON.stringify(APICACHE[k]))}catch(e){}};
+  if(sm){const ids=new Set((GSB||[]).map(x=>x.id));GSB=[...sm.messages.filter(x=>!ids.has(x.id)),...(GSB||[])];keep('summaries',{messages:GSB})}if(tr){GTR=tr.files;keep('transcripts',tr)}
   const fresh=convItems().filter(x=>!before.has(x.key));
   if(fresh.length){AUTOQ_DONE=0;toast(fresh.length===1?'Nova reunião: '+cleanTitle(fresh[0].title):fresh.length+' reuniões novas chegaram');
    try{if(window.Notification&&Notification.permission==='granted')new Notification('Nova reunião no CRM',{body:cleanTitle(fresh[0].title)})}catch(e){}

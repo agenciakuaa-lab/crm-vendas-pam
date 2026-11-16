@@ -41,7 +41,7 @@ export async function inBatches(items, size, fn) {
   const out = [];
   for (let i = 0; i < items.length; i += size) {
     out.push(...await Promise.all(items.slice(i, i + size).map(fn)));
-    if (i + size < items.length) await sleep(250);
+    if (i + size < items.length) await sleep(400);
   }
   return out;
 }

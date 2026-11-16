@@ -52,7 +52,7 @@ export async function GET(request) {
       if (want !== 'gemini') parts.push('subject:"O resumo do seu call chegou"');
       if (want !== 'salesbud') parts.push('subject:"Anotações"');
       const ids = await listIds(token, `${after} {${parts.join(' ')}}`, 300);
-      const msgs = await inBatches(ids, 10, (id) => gapi(token, `${G}/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Message-ID`).catch(() => null));
+      const msgs = await inBatches(ids, 5, (id) => gapi(token, `${G}/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Message-ID`).catch(() => null));
       const out = msgs.filter(Boolean).map((m) => {
         const subject = hdr(m, 'Subject');
         const type = SALESBUD.test(subject) ? 'salesbud' : GEMINI.test(subject) ? 'gemini' : null;
@@ -65,7 +65,7 @@ export async function GET(request) {
     const contacts = await sbAdmin(`/rest/v1/contacts?owner_id=eq.${user.id}&select=email&email=not.is.null`, { headers: { Prefer: '' } }).catch(() => []);
     const known = new Set((contacts || []).map((c) => (c.email || '').toLowerCase()).filter(Boolean));
     const ids = await listIds(token, `${after} -from:me -category:promotions -category:social -category:updates -category:forums -subject:"O resumo do seu call chegou" -subject:"Anotações"`, 400);
-    const msgs = await inBatches(ids, 10, (id) => gapi(token, `${G}/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=List-Unsubscribe&metadataHeaders=Precedence&metadataHeaders=In-Reply-To&metadataHeaders=Message-ID&metadataHeaders=Auto-Submitted`).catch(() => null));
+    const msgs = await inBatches(ids, 5, (id) => gapi(token, `${G}/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=List-Unsubscribe&metadataHeaders=Precedence&metadataHeaders=In-Reply-To&metadataHeaders=Message-ID&metadataHeaders=Auto-Submitted`).catch(() => null));
     let hidden = 0;
     const out = [];
     for (const m of msgs.filter(Boolean)) {

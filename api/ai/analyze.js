@@ -73,7 +73,7 @@ Até 4 itens por lista.
 
 NEGÓCIOS DO CRM (título | empresa | contato):
 ${JSON.stringify((deals || []).map((d) => `${d.title} | ${d.companies?.name || ''} | ${d.contacts?.name || ''}`)).slice(0, 20000)}`;
-    const { text: out, model } = await gemini({ system, contents: [{ role: 'user', parts: [{ text: `Título: ${name}\n\n${text.slice(0, 100000)}` }] }], json: true });
+    const { text: out, model } = await gemini({ system, contents: [{ role: 'user', parts: [{ text: `Título: ${name}\n\n${text.slice(0, 100000)}` }] }], json: true, deadline: 55000 });
     let data;
     try { data = JSON.parse(out.replace(/^```json\s*|```$/g, '')); } catch { return json({ error: 'A IA respondeu fora do formato. Tente de novo.', raw: out.slice(0, 500) }, 502); }
     // guarda a análise no banco (cria a conversa se ainda não existir)
