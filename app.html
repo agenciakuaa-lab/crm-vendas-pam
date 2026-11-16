@@ -571,7 +571,7 @@ function pPipeline(){
  return `<div class="ph"><div><h1>Pipeline de vendas</h1><p>${list.length} negócios · ${fmt(sum(list.filter(d=>d.s!=='Ganho'),d=>d.v))} em aberto · arraste os cards para mudar de estágio</p></div><div class="sp"></div>
  <label class="muted" for="porig" style="font-size:12px">Origem</label><select class="sel" id="porig" onchange="pOrigin=this.value;render()">${origins.map(o=>`<option ${o===pOrigin?'selected':''}>${o}</option>`).join('')}</select>
  <div class="seg"><button class="${pView==='kanban'?'on':''}" onclick="pView='kanban';render()">Kanban</button><button class="${pView==='lista'?'on':''}" onclick="pView='lista';render()">Lista</button></div>
- <button class="btn pri" onclick="newDeal()"><i data-lucide="plus"></i>Negócio</button></div>${body}`;
+ ${typeof GOOGLE_ON!=='undefined'&&GOOGLE_ON?'<button class="btn" onclick="syncModal()"><i data-lucide="download"></i>Importar do Google</button>':''}<button class="btn pri" onclick="newDeal()"><i data-lucide="plus"></i>Negócio</button></div>${body}`;
 }
 function sortP(k){pSort.dir=pSort.k===k?-pSort.dir:-1;pSort.k=k;render()}
 function cPipeline(){
@@ -886,7 +886,7 @@ function pAtividades(){
  const l=ACTS.filter(a=>aF==='todas'||(aF==='ia')===a.ai);const ai=ACTS.filter(a=>a.ai).length;let lastDay='';
  return `<div class="ph"><div><h1>Histórico de atividades</h1><p>O que você fez e o que as automações de IA fizeram por você</p></div><div class="sp"></div>
  <div class="seg">${[['todas','Todas'],['manual','Manuais'],['ia','Automações IA']].map(f=>`<button class="${aF===f[0]?'on':''}" onclick="aF='${f[0]}';render()">${f[1]}</button>`).join('')}</div><button class="btn pri" onclick="toast('Atividade registrada (demo)')"><i data-lucide="plus"></i>Registrar</button></div>
- <div class="kpis"><div class="kpi"><small>Atividades (7 dias)</small><div class="v">179</div></div><div class="kpi"><small>Manuais</small><div class="v" style="color:var(--blue)">111</div><div class="s">62%</div></div><div class="kpi"><small>Por automação IA</small><div class="v" style="color:var(--violet)">68</div><div class="s">38% · +12 pts no mês</div></div><div class="kpi"><small>Tempo economizado</small><div class="v up">9h40</div><div class="s">estimativa por tipo de tarefa</div></div></div>
+ <div class="kpis"><div class="kpi"><small>Atividades registradas</small><div class="v">${ACTS.length}</div></div><div class="kpi"><small>Manuais</small><div class="v" style="color:var(--blue)">${ACTS.filter(x=>!x.ai).length}</div><div class="s">${ACTS.length?Math.round(ACTS.filter(x=>!x.ai).length/ACTS.length*100):0}%</div></div><div class="kpi"><small>Automáticas e importadas</small><div class="v" style="color:var(--violet)">${ACTS.filter(x=>x.ai).length}</div><div class="s">${ACTS.length?Math.round(ACTS.filter(x=>x.ai).length/ACTS.length*100):0}%</div></div><div class="kpi"><small>Tempo economizado</small><div class="v up">${Math.round(ACTS.filter(x=>x.ai).length*4/60*10)/10}h</div><div class="s">estimativa: 4 min por registro automático</div></div></div>
  <div class="grid g21"><div class="card"><div class="tlx">${l.map(a=>{const h=a.day!==lastDay?`<div class="dayh">${a.day}</div>`:'';lastDay=a.day;return h+`<div class="ti"><span class="ic" style="background:${a.ai?'var(--violet-soft)':'var(--blue-soft)'};color:${a.ai?'var(--violet)':'var(--blue)'}"><i data-lucide="${AIC[a.ty]||'circle'}"></i></span><div><div class="t">${a.t}</div><div class="d">${a.d}</div>${a.ai?`<span class="pill v" style="margin-top:5px"><i data-lucide="bot"></i>${a.src}</span>`:`<span class="pill b" style="margin-top:5px"><i data-lucide="user"></i>Maykom</span>`}</div><div class="w">${a.h}</div></div>`}).join('')}</div></div>
  <div class="grid" style="align-content:start"><div class="card"><h3>Manual × IA por semana</h3><div class="chartbox sm"><canvas id="aw"></canvas></div></div>
  <div class="card"><h3>Automações ativas</h3><div class="list">${[['Qualificar e-mails do Gmail','312 execuções'],['Lead da LP → CRM + WhatsApp','46 execuções'],['Transcrever reuniões e ligações','18 execuções'],['Alerta de negócio parado','9 alertas'],['Resumo diário 8h30','7 execuções']].map(x=>`<div class="li"><i data-lucide="workflow" style="color:var(--violet)"></i><div><div class="t">${x[0]}</div><div class="d">${x[1]} no mês</div></div><span class="pill g" style="margin-left:auto">ativa</span></div>`).join('')}</div></div></div></div>`;
@@ -938,7 +938,7 @@ function pIntegracoes(){
  ${groups.includes('Google Workspace')?`<div class="int feat" style="margin-bottom:16px"><div class="hd"><span class="lg" style="background:conic-gradient(#4285f4 0 25%,#ea4335 0 50%,#fbbc04 0 75%,#34a853 0)">G</span><div><b>Conector Google</b><small>Uma credencial OAuth para Gmail, Agenda, Meet/Drive e Sheets</small></div><span style="margin-left:auto">${GOOGLE_ON?'<span class="pill g"><i data-lucide="link"></i>Conta conectada</span>':stPill(gst)}</span></div>
   <p>${GOOGLE_ON?'Conta Google autorizada. Gmail, Agenda, transcrições do Meet e e-mails do SalesBud já alimentam o CRM.':'Preencha GOOGLE_CLIENT_ID e GOOGLE_CLIENT_SECRET na Vercel. Depois clique em Conectar conta Google para autorizar o acesso.'}</p>
   <div class="subs">${INTS.filter(i=>i.google).map(i=>`<span class="pill ${gst==='on'?'b':'n'}">${i.n}</span>`).join('')}</div>
-  <div class="ft">URL de retorno: ${SITE}/oauth/google<button class="btn sm" onclick="cfg('google')"><i data-lucide="settings"></i>Ver chaves</button><button class="btn sm pri" onclick="connectGoogle()" ${gst==='on'?'':'disabled title="Preencha as chaves primeiro"'}>${GOOGLE_ON?'Reconectar':'Conectar conta Google'}</button></div></div>`:''}
+  <div class="ft">URL de retorno: ${SITE}/oauth/google<button class="btn sm" onclick="cfg('google')"><i data-lucide="settings"></i>Ver chaves</button><button class="btn sm pri" onclick="connectGoogle()" ${gst==='on'?'':'disabled title="Preencha as chaves primeiro"'}>${GOOGLE_ON?'Reconectar':'Conectar conta Google'}</button>${GOOGLE_ON?'<button class="btn sm pri" onclick="syncModal()"><i data-lucide="download"></i>Importar última semana</button>':''}</div></div>`:''}
  ${groups.map(g=>{const l=INTS.filter(i=>i.g===g);return `<h3 style="font-family:var(--display);font-weight:500;font-size:15px;margin:22px 0 10px">${g}</h3><div class="ints">${l.map(i=>{const s=ist(i);return `<div class="int"><div class="hd"><span class="lg" style="background:${i.c};font-size:${i.l.length>2?'11px':'14px'}">${i.l}</span><div><b>${i.n}</b><small>${i.google?'via Conector Google':i.g}</small></div><span style="margin-left:auto">${stPill(s)}</span></div><p>${i.d}</p>
   <div style="font-size:11.5px" class="muted"><b style="color:var(--text);font-weight:500">Usado em:</b> ${i.use}</div>
   <div class="ft"><i data-lucide="key-round" style="width:12px"></i>${i.env.length} chave${i.env.length>1?'s':''}<button class="btn sm ${s==='on'?'':'pri'}" onclick="cfg('${i.id}')">${s==='on'?'Ver chaves':'Configurar'}</button></div></div>`}).join('')}</div>`}).join('')}`;
@@ -1051,6 +1051,22 @@ async function fuGmail(id){const d=D.find(x=>x.id===id),to=document.getElementBy
  try{await api('/api/google/gmail',{method:'POST',body:JSON.stringify({to,subject:sub,body})});sent.add(id);d.la=0;dbActivity(d,'email','E-mail enviado: '+sub,to);
   if(d.uuid&&!d.email){const {data}=await sb.from('deals').select('contact_id').eq('id',d.uuid).maybeSingle();if(data&&data.contact_id)await sb.from('contacts').update({email:to}).eq('id',data.contact_id);d.email=to}
   render();toast('E-mail enviado pelo seu Gmail')}catch(e){toast('Não foi possível enviar: '+e.message);b.disabled=false}}
+function syncModal(){modal(`<h3 style="margin:0 0 4px">Importar da conta Google</h3><div class="muted" style="font-size:12.5px">Lê Gmail, Agenda, transcrições do Gemini e e-mails do SalesBud e preenche o CRM.</div>
+ <label for="sy_days">Período</label><select class="sel" id="sy_days" style="width:100%"><option value="7" selected>Últimos 7 dias</option><option value="14">Últimos 14 dias</option><option value="30">Últimos 30 dias</option></select>
+ <label style="display:flex;gap:8px;align-items:center;font-weight:400;margin-top:14px"><input type="checkbox" id="sy_wipe" checked style="width:16px;height:16px;accent-color:var(--blue)">Remover os 15 negócios de exemplo</label>
+ <div class="note">O que entra: pessoas que trocaram e-mail com você ou participaram de reuniões (sem newsletters, notificações e colegas do seu domínio). Cada empresa vira um negócio no estágio certo: reunião vira Diagnóstico, troca de e-mails vira Qualificação, contato de uma via vira Lead novo. Rodar de novo não duplica nada.</div>
+ <div id="sy_res" style="font-size:12.5px;margin-top:10px;min-height:16px"></div>
+ <div class="row" style="margin-top:14px;justify-content:flex-end"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn pri" id="sy_go" onclick="runSync()"><i data-lucide="download"></i>Importar</button></div>`)}
+async function runSync(){const b=document.getElementById('sy_go'),r=document.getElementById('sy_res');b.disabled=true;r.className='muted';r.textContent='Importando… pode levar até 1 minuto.';
+ try{const j=await api('/api/google/sync',{method:'POST',body:JSON.stringify({days:+document.getElementById('sy_days').value,wipeSample:document.getElementById('sy_wipe').checked})});
+  r.className='up';r.innerHTML=`Pronto: <b>${j.negocios}</b> negócios, <b>${j.contatos}</b> contatos, <b>${j.empresas}</b> empresas, <b>${j.atividades}</b> atividades e <b>${j.conversas}</b> conversas importados de ${esc(j.conta)}${j.removidos_exemplo?` · ${j.removidos_exemplo} exemplos removidos`:''}.`;
+  await loadDeals();await loadActs();GMAIL=null;GCAL=null;GTR=null;GSB=null;setTimeout(()=>{closeModal();go('pipeline');render()},2200)}
+ catch(e){r.className='dn';r.textContent='Não foi possível importar: '+e.message;b.disabled=false}}
+const ATYPE={email:'mail',whatsapp:'wa',call:'call',meeting:'meet',note:'note',move:'move',alert:'alert',sync:'sync',lead:'lead',transcription:'trans'};
+async function loadActs(){try{const {data,error}=await sb.from('activities').select('type,title,detail,by_ai,source,occurred_at').order('occurred_at',{ascending:false}).limit(150);if(error||!data||!data.length)return;
+ const today=new Date().toDateString(),yest=new Date(Date.now()-864e5).toDateString();ACTS.length=0;
+ data.forEach(a=>{const d=new Date(a.occurred_at);const day=d.toDateString()===today?'Hoje':d.toDateString()===yest?'Ontem':d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+  ACTS.push({day,h:d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),ai:a.by_ai,ty:ATYPE[a.type]||'note',t:a.title,d:a.detail||'',src:a.source&&/^g(mail|cal)/.test(a.source)?(a.source.startsWith('gcal')?'Importado · Google Agenda':'Importado · Gmail'):(a.source||'Automação')})})}catch(e){}}
 /* ============ SUPABASE: carregar e gravar ============ */
 let LIVE=false;
 const fmtD=d=>d?d.slice(8,10)+'/'+d.slice(5,7):'—';
@@ -1097,7 +1113,7 @@ async function boot(){
  if(!data.session){location.replace('index.html');return}
  const u=data.session.user;CRM_USER={email:u.email,name:(u.user_metadata&&u.user_metadata.name)||u.email.split('@')[0].replace(/[._-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase())};
  document.getElementById('mename').textContent=CRM_USER.name;document.getElementById('memail').textContent=CRM_USER.email;document.getElementById('meav').textContent=CRM_USER.name.split(' ').map(x=>x[0]).slice(0,2).join('').toUpperCase();
- try{await loadDeals();LIVE=true;await checkGoogle()}catch(e){toast('Não consegui ler o banco: '+e.message)}
+ try{await loadDeals();LIVE=true;await checkGoogle();await loadActs()}catch(e){toast('Não consegui ler o banco: '+e.message)}
  render();
 }
 boot();
