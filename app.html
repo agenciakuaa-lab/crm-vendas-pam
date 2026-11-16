@@ -417,6 +417,7 @@ details[open] summary::before{transform:rotate(90deg)}
 .gnote{text-align:center;font-size:11.5px;color:var(--muted);padding:8px 0 4px}
 @media(max-width:800px){.gsug{grid-template-columns:1fr 1fr}.ghello h1{font-size:34px}.ghello h2{font-size:22px}}
 /* lista de conversas com scroll próprio */
+.cxday{font-size:11.5px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);padding:12px 6px 4px;position:sticky;top:0;background:var(--bg);z-index:1}
 .cxl{max-height:calc(100vh - 100px);display:flex;flex-direction:column}
 .cxscroll{overflow-y:auto;flex:1;min-height:0;padding-right:4px;margin-right:-4px}
 .cxscroll::-webkit-scrollbar{width:6px}.cxscroll::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px}
@@ -1254,12 +1255,15 @@ function rawItems(){const m=new Map();
 const normT=t=>cleanTitle(t).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+em\s+\d{1,2}\s+de\s+\w+\.?\s+de\s+\d{4}.*$/,'').replace(/\s+-\s+\d{4}\/\d{2}\/\d{2}.*$/,'').replace(/anotacoes do gemini|notes by gemini|transcri\w*|transcript/g,'').replace(/^(reuniao|meeting)\s+/,'').replace(/[^a-z0-9]+/g,' ').trim();
 const SRCRANK={meet:0,gemini_notes:1,gemini:2,gemini_email:2,salesbud:3};
 const SRCNAME={meet:'Transcrição',gemini_notes:'Anotações do Gemini',gemini:'Gemini (e-mail)',gemini_email:'Gemini (e-mail)',salesbud:'SalesBud'};
+function mtgDate(x){const m=String(x.title||'').match(/(\d{1,2}):(\d{2})\s+(\d{2})\/(\d{2})\/(\d{4})/);if(m)return new Date(`${m[5]}-${m[4]}-${m[3]}T${m[1].padStart(2,'0')}:${m[2]}:00-03:00`).toISOString();
+ const n=String(x.title||'').match(/(\d{4})\/(\d{2})\/(\d{2})\s+(\d{1,2}):(\d{2})/);if(n)return new Date(`${n[1]}-${n[2]}-${n[3]}T${n[4].padStart(2,'0')}:${n[5]}:00-03:00`).toISOString();return new Date(x.date).toISOString()}
+function dayLbl(iso){const k=spYmd(iso),t=spYmd(new Date().toISOString()),y=spYmd(new Date(Date.now()-864e5).toISOString());return k===t?'Hoje':k===y?'Ontem':new Date(iso).toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'short',timeZone:'America/Sao_Paulo'})}
 function convItems(){const g=new Map();
- rawItems().forEach(x=>{const k=normT(x.title)+'|'+spYmd(x.date);if(!g.has(k))g.set(k,[]);g.get(k).push(x)});
+ rawItems().forEach(x=>{x.date=mtgDate(x);const k=normT(x.title)+'|'+spYmd(x.date);if(!g.has(k))g.set(k,[]);g.get(k).push(x)});
  return [...g.values()].map(arr=>{arr.sort((a,b)=>(SRCRANK[a.kind]??9)-(SRCRANK[b.kind]??9));const p=arr[0];
   const has=arr.find(x=>AN[x.key]&&AN[x.key].data);if(has&&!(AN[p.key]&&AN[p.key].data))AN[p.key]=AN[has.key];
   return {...p,parts:arr,label:[...new Set(arr.map(x=>SRCNAME[x.kind]||kindLabel(x.kind)))].join(' + '),date:arr.map(x=>x.date).sort()[0]}})
- .sort((a,b)=>String(b.date).localeCompare(String(a.date)))}
+ .sort((a,b)=>new Date(b.date)-new Date(a.date))}
 const alsoOf=it=>(it.parts||[]).slice(1).map(x=>({source:x.src,id:x.id,label:SRCNAME[x.kind]||x.kind}));
 function anCol(a){const n=+((a||{}).vale_a_pena||{}).nota||0;return n>=75?'green':n>=50?'amber':'red'}
 async function anOne(it){if(AN[it.key]&&(AN[it.key].loading||AN[it.key].data))return;AN[it.key]={loading:true};if(['conversas','followup'].includes(cur()))render();
@@ -1280,8 +1284,8 @@ function pConversasLive(){loadSb();loadTr();if(CONVDB===null)loadConvDB().then((
  const ours=A.reduce((s,a)=>s+(a.compromissos||[]).filter(c=>/n[oó]s/i.test(c.quem||'')).length,0);
  const objs={};A.forEach(a=>(a.objecoes||[]).forEach(o=>{const k=String(o.objecao||'').toLowerCase().split(/[,.;]/)[0].slice(0,60);if(k)objs[k]=(objs[k]||0)+1}));const topObj=Object.entries(objs).sort((x,y)=>y[1]-x[1])[0];
  const it=items.find(x=>x.key===GTRSEL),st=it&&AN[it.key];
- const listHTML=!GSB&&!GTR&&CONVDB===null?'<div class="muted" style="font-size:12.5px;padding:8px">Buscando suas reuniões…</div>':shown.length?shown.map(x=>{const a=AN[x.key]&&AN[x.key].data,ld=AN[x.key]&&AN[x.key].loading;
-  return `<button class="cxi ${GTRSEL===x.key?'on':''}" onclick="openConv('${x.key}')"><div class="av" style="background:var(--${x.kind==='salesbud'?'amber':'blue'}-soft);color:var(--${x.kind==='salesbud'?'amber':'blue'})"><i data-lucide="${x.kind==='salesbud'?'mic':x.src==='drive'?'file-text':'sparkles'}" style="width:16px"></i></div><div style="min-width:0;text-align:left"><b>${esc(a&&a.empresa||cleanTitle(x.title)||x.title)}</b><span>${esc(x.label||kindLabel(x.kind))} · ${new Date(x.date).toLocaleDateString('pt-BR')}${a&&a.temperatura?' · '+esc(a.temperatura):''}</span></div>${a?`<span class="sc" style="color:var(--${anCol(a)});background:var(--${anCol(a)}-soft)">${(a.vale_a_pena||{}).nota??'—'}</span>`:ld?'<span class="sc" style="background:var(--soft);color:var(--muted)">…</span>':'<span class="sc" style="background:var(--soft);color:var(--muted)">fila</span>'}</button>`}).join(''):`<div class="muted" style="font-size:12.5px;padding:8px">${items.length?'Todas as reuniões já foram vistas.':'Nenhuma reunião encontrada desde setembro.'}</div>`;
+ const listHTML=!GSB&&!GTR&&CONVDB===null?'<div class="muted" style="font-size:12.5px;padding:8px">Buscando suas reuniões…</div>':shown.length?shown.map((x,ix)=>{const dh=ix===0||spYmd(shown[ix-1].date)!==spYmd(x.date)?`<div class="cxday">${dayLbl(x.date)}</div>`:'';const a=AN[x.key]&&AN[x.key].data,ld=AN[x.key]&&AN[x.key].loading;
+  return dh+`<button class="cxi ${GTRSEL===x.key?'on':''}" onclick="openConv('${x.key}')"><div class="av" style="background:var(--${x.kind==='salesbud'?'amber':'blue'}-soft);color:var(--${x.kind==='salesbud'?'amber':'blue'})"><i data-lucide="${x.kind==='salesbud'?'mic':x.src==='drive'?'file-text':'sparkles'}" style="width:16px"></i></div><div style="min-width:0;text-align:left"><b>${esc(a&&a.empresa||cleanTitle(x.title)||x.title)}</b><span>${hhmm(x.date)} · ${esc(x.label||kindLabel(x.kind))}${a&&a.temperatura?' · '+esc(a.temperatura):''}</span></div>${a?`<span class="sc" style="color:var(--${anCol(a)});background:var(--${anCol(a)}-soft)">${(a.vale_a_pena||{}).nota??'—'}</span>`:ld?'<span class="sc" style="background:var(--soft);color:var(--muted)">…</span>':'<span class="sc" style="background:var(--soft);color:var(--muted)">fila</span>'}</button>`}).join(''):`<div class="muted" style="font-size:12.5px;padding:8px">${items.length?'Todas as reuniões já foram vistas.':'Nenhuma reunião encontrada desde setembro.'}</div>`;
  let view='<div class="card" style="text-align:center;padding:40px"><p class="muted">Selecione uma reunião à esquerda.</p></div>';
  if(it){const a=st&&st.data;if(!a){loadOrig(it);if(!st)setTimeout(()=>anOne(it).catch(()=>{}),0)}const orig=GTRTXT['txt:'+it.key];
   view=`<div class="cxd"><div class="cxh"><div class="av" style="width:44px;height:44px;background:var(--${it.kind==='salesbud'?'amber':'blue'}-soft);color:var(--${it.kind==='salesbud'?'amber':'blue'})"><i data-lucide="${it.kind==='salesbud'?'mic':it.src==='drive'?'file-text':'sparkles'}"></i></div><div style="min-width:0"><h2>${esc(a&&a.empresa||cleanTitle(it.title)||it.title)}</h2><span class="muted">${esc(it.label||kindLabel(it.kind))} · ${new Date(it.date).toLocaleString('pt-BR')}${a&&a.contato?' · '+esc(a.contato):''}</span></div><span class="sp" style="flex:1"></span><a class="btn" href="${it.link}" target="_blank" rel="noopener"><i data-lucide="external-link"></i>Original</a></div>
