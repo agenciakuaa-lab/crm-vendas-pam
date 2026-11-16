@@ -18,19 +18,28 @@ export async function POST(request) {
   try {
     const user = await userFromRequest(request);
     if (!user) return json({ error: 'Faça login no CRM' }, 401);
-    const { source = 'text', id, text: given, title = '', kind = null, date = null } = await request.json();
-    let text = given || '', name = title;
-    if (source === 'gmail' || source === 'drive') {
-      const token = await googleToken(user.id);
-      if (source === 'gmail') {
-        const m = await gapi(token, `https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=full`);
-        text = decodeBody(m.payload); name = name || (m.payload?.headers || []).find((h) => h.name === 'Subject')?.value || '';
-      } else {
-        const r = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}/export?mimeType=text/plain`, { headers: { Authorization: `Bearer ${token}` } });
-        if (!r.ok) return json({ error: `Não consegui abrir o documento (${r.status})` }, r.status);
-        text = await r.text();
+    const { source = 'text', id, text: given, title = '', kind = null, date = null, also = [] } = await request.json();
+    let text = given || '', name = title, token = null;
+    const fetchText = async (src, fid) => {
+      token = token || await googleToken(user.id);
+      if (src === 'gmail') {
+        const m = await gapi(token, `https://gmail.googleapis.com/gmail/v1/users/me/messages/${fid}?format=full`);
+        return { text: decodeBody(m.payload), subject: (m.payload?.headers || []).find((h) => h.name === 'Subject')?.value || '' };
       }
+      const r = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fid)}/export?mimeType=text/plain`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) { const e = new Error(`Não consegui abrir o documento (${r.status})`); e.status = r.status; throw e; }
+      return { text: await r.text(), subject: '' };
+    };
+    if (source === 'gmail' || source === 'drive') {
+      const t = await fetchText(source, id); text = t.text; name = name || t.subject;
     }
+    // outras fontes da mesma reunião (ex.: resumo SalesBud + anotações do Gemini + transcrição)
+    const label = { gmail: 'Resumo por e-mail', drive: 'Documento do Drive' };
+    for (const o of (Array.isArray(also) ? also : []).slice(0, 3)) {
+      try { const t = await fetchText(o.source, o.id); if (t.text.trim()) text += `\n\n===== ${o.label || label[o.source] || 'Outra fonte'} =====\n${t.text}`; } catch (e) { /* ignora fonte que não abriu */ }
+    }
+    if (also.length) text = `===== ${label[source] || 'Fonte principal'} =====\n` + text;
+    text = text.slice(0, 120000);
     if (!text.trim()) return json({ error: 'Sem texto para analisar' }, 400);
     const deals = await sbAdmin(`/rest/v1/deals?owner_id=eq.${user.id}&select=id,title,companies(name),contacts(name)&limit=300`, { headers: { Prefer: '' } }).catch(() => []);
     const system = `Você é um analista comercial sênior. Vai ler o resumo ou a transcrição de uma reunião de vendas (SalesBud, anotações do Gemini ou transcrição do Meet) e extrair o que um CRM precisa para avançar o negócio.
@@ -64,7 +73,7 @@ Até 4 itens por lista.
 
 NEGÓCIOS DO CRM (título | empresa | contato):
 ${JSON.stringify((deals || []).map((d) => `${d.title} | ${d.companies?.name || ''} | ${d.contacts?.name || ''}`)).slice(0, 20000)}`;
-    const { text: out, model } = await gemini({ system, contents: [{ role: 'user', parts: [{ text: `Título: ${name}\n\n${text.slice(0, 60000)}` }] }], json: true });
+    const { text: out, model } = await gemini({ system, contents: [{ role: 'user', parts: [{ text: `Título: ${name}\n\n${text.slice(0, 100000)}` }] }], json: true });
     let data;
     try { data = JSON.parse(out.replace(/^```json\s*|```$/g, '')); } catch { return json({ error: 'A IA respondeu fora do formato. Tente de novo.', raw: out.slice(0, 500) }, 502); }
     // guarda a análise no banco (cria a conversa se ainda não existir)
