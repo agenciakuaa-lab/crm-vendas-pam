@@ -500,8 +500,7 @@ function pDashboard(){
  return `
  <div class="ph"><div><h1>Dashboard</h1><p>Atualizado agora · novembro de 2026</p></div><div class="sp"></div>
  <select class="sel" id="dperiod" aria-label="Período"><option>Este mês</option><option>Trimestre</option><option>Ano</option></select>
- <select class="sel" aria-label="Equipe"><option>Toda equipe</option><option>Maykom</option></select>
- <button class="btn" onclick="toast('Dados sincronizados')"><i data-lucide="refresh-cw"></i></button></div>
+ <select class="sel" aria-label="Equipe"><option>Toda equipe</option><option>Maykom</option></select></div>
  <div class="kpis">
   <div class="kpi" style="cursor:pointer" onclick="go('prazos')"><small>Prazos críticos</small><i data-lucide="alert-triangle" class="dn"></i><div class="v dn">4</div><div class="s">vencendo ou vencidos</div></div>
   <div class="kpi"><small>Vendas ganhas</small><i data-lucide="dollar-sign" class="up"></i><div class="v">${fmt(wsum)}</div><div class="s up">+12% vs mesmo período</div></div>
@@ -964,7 +963,7 @@ function render(){
  document.getElementById('nav').innerHTML=navHTML(c);
  document.getElementById('crumb').textContent=PAGES.find(p=>p[0]===c)[1];
  const sy=window.scrollY;document.getElementById('view').innerHTML=R[c][0]();
- if(R[c][1])R[c][1]();icons();
+ if(R[c][1])R[c][1]();addRefresh();icons();
  if(render._last===c)window.scrollTo(0,sy);else window.scrollTo(0,0);render._last=c;themeIcon();
  document.getElementById('side').classList.remove('open');
 }
@@ -1191,6 +1190,14 @@ async function applyAn(key){const a=AN[key]&&AN[key].data,d=a&&D.find(x=>x.t===a
 let SEEN={},SHOWSEEN=false;try{SEEN=JSON.parse(localStorage.getItem('crmSeen')||'{}')}catch(e){}
 function markSeen(k){SEEN[k]=Date.now();try{localStorage.setItem('crmSeen',JSON.stringify(SEEN))}catch(e){}}
 const vis=k=>SHOWSEEN||!SEEN[k]||GTRSEL===k;
+async function refreshAll(btn){if(btn){btn.disabled=true;btn.innerHTML='<i data-lucide="loader-2"></i>Atualizando…';icons()}
+ GMAIL=null;GMAIL_ERR=null;GBODY={};GSB=null;GSB_ERR=null;GTR=null;GTR_ERR=null;GCAL=null;GCAL_ERR=null;GCALM={};ENVST=null;ENVERR=null;for(const k in APICACHE)delete APICACHE[k];
+ try{if(LIVE){await loadDeals();await checkGoogle();await loadActs();await loadLeadDays()}}catch(e){toast('Não consegui atualizar: '+e.message)}
+ render();toast('Dados atualizados')}
+function addRefresh(){const ph=document.querySelector('#view .ph');if(!ph||ph.querySelector('[data-refresh]'))return;
+ ph.querySelectorAll('button').forEach(b=>{if(/^\s*Atualizar\s*$/.test(b.textContent)||/Verificar de novo/.test(b.textContent))b.remove()});
+ const b=document.createElement('button');b.className='btn';b.dataset.refresh='1';b.title='Carregar os dados mais recentes';b.innerHTML='<i data-lucide="refresh-cw"></i>Atualizar';b.onclick=()=>refreshAll(b);
+ let sp=ph.querySelector(':scope > .sp');if(!sp){sp=document.createElement('div');sp.className='sp';ph.appendChild(sp)}sp.after(b)}
 /* ============ SUPABASE: carregar e gravar ============ */
 let LIVE=false;
 const fmtD=d=>d?d.slice(8,10)+'/'+d.slice(5,7):'—';
