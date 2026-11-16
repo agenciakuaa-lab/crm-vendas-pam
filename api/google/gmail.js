@@ -64,8 +64,11 @@ export async function GET(request) {
     // e-mails de clientes: sem resumos, promoções, redes sociais, atualizações, fóruns e envios automáticos
     const contacts = await sbAdmin(`/rest/v1/contacts?owner_id=eq.${user.id}&select=email&email=not.is.null`, { headers: { Prefer: '' } }).catch(() => []);
     const known = new Set((contacts || []).map((c) => (c.email || '').toLowerCase()).filter(Boolean));
-    const ids = await listIds(token, `${after} -from:me -category:promotions -category:social -category:updates -category:forums -subject:"O resumo do seu call chegou" -subject:"Anotações"`, 400);
-    const msgs = await inBatches(ids, 5, (id) => gapi(token, `${G}/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=List-Unsubscribe&metadataHeaders=Precedence&metadataHeaders=In-Reply-To&metadataHeaders=Message-ID&metadataHeaders=Auto-Submitted`).catch(() => null));
+    const pq = `${after} -from:me -category:promotions -category:social -category:updates -category:forums -subject:"O resumo do seu call chegou" -subject:"Anotações"`;
+    // uma página por chamada (rápido); o CRM pede as próximas em segundo plano
+    const pg = await gapi(token, `${G}/messages?maxResults=50&q=${encodeURIComponent(pq)}${sp.get('pageToken') ? '&pageToken=' + encodeURIComponent(sp.get('pageToken')) : ''}`);
+    const ids = (pg.messages || []).map((m) => m.id);
+    const msgs = await inBatches(ids, 10, (id) => gapi(token, `${G}/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=List-Unsubscribe&metadataHeaders=Precedence&metadataHeaders=In-Reply-To&metadataHeaders=Message-ID&metadataHeaders=Auto-Submitted`).catch(() => null));
     let hidden = 0;
     const out = [];
     for (const m of msgs.filter(Boolean)) {
@@ -76,7 +79,7 @@ export async function GET(request) {
       const isReply = !!hdr(m, 'In-Reply-To') || /^\s*(re|res|resp|enc|fw|fwd)\s*:/i.test(subject);
       out.push({ id: m.id, threadId: m.threadId, messageId: hdr(m, 'Message-ID'), fromName: from.name, fromEmail: from.email, subject: subject || '(sem assunto)', snippet: m.snippet, date: new Date(Number(m.internalDate)).toISOString(), isContact, isReply, unread: (m.labelIds || []).includes('UNREAD') });
     }
-    return json({ messages: out, total: out.length, hidden, since });
+    return json({ messages: out, total: out.length, hidden, since, nextPageToken: pg.nextPageToken || null });
   } catch (e) {
     console.log('[google]', new URL(request.url).pathname, e.status || 500, e.message);
     return json({ error: e.message }, e.status || 500);
