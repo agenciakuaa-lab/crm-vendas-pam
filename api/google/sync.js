@@ -2,7 +2,7 @@
 // Importa da conta Google conectada: reuniões da Agenda viram contatos, empresas, negócios e atividades;
 // resumos do SalesBud, anotações do Gemini (e-mail) e transcrições do Drive viram conversas
 import { json, userFromRequest, sbAdmin } from '../_lib.js';
-import { googleToken, gapi } from '../_google.js';
+import { googleToken, gapi, inBatches } from '../_google.js';
 
 export const maxDuration = 60;
 const G = 'https://gmail.googleapis.com/gmail/v1/users/me';

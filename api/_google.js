@@ -22,9 +22,26 @@ export async function googleToken(userId) {
   return j.access_token;
 }
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// chama a API do Google; se bater no limite por minuto, espera e tenta de novo
 export async function gapi(token, url, init = {}) {
-  const r = await fetch(url, { ...init, headers: { Authorization: `Bearer ${token}`, ...(init.headers || {}) } });
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok) { const e = new Error(j.error?.message || `Google ${r.status}`); e.status = r.status; throw e; }
-  return j;
+  for (let attempt = 0; ; attempt++) {
+    const r = await fetch(url, { ...init, headers: { Authorization: `Bearer ${token}`, ...(init.headers || {}) } });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok) return j;
+    const msg = j.error?.message || `Google ${r.status}`;
+    const limited = r.status === 429 || (r.status === 403 && /rate|quota|limit exceeded/i.test(msg));
+    if (limited && attempt < 3) { await sleep(1500 * 2 ** attempt); continue; }
+    const e = new Error(limited ? 'O Google limitou as leituras por minuto. Aguarde 1 minuto e clique em Atualizar.' : msg); e.status = limited ? 429 : r.status; throw e;
+  }
+}
+
+// busca vários itens em lotes pequenos para não estourar o limite por minuto
+export async function inBatches(items, size, fn) {
+  const out = [];
+  for (let i = 0; i < items.length; i += size) {
+    out.push(...await Promise.all(items.slice(i, i + size).map(fn)));
+    if (i + size < items.length) await sleep(250);
+  }
+  return out;
 }

@@ -630,37 +630,6 @@ const EVENTS=[
 ];
 let agView='dia',evSel=1;
 function forecast(day){const dow=new Date(2026,10,day).getDay();const base=[3,14,13,12,11,9,4][dow];let f=1;if(day>=24&&day<=30)f=1.35;if(day>=20&&day<=21)f=.85;const n=((day*37)%7-3)*.6;return Math.max(1,Math.round(base*f+n))}
-function pAgenda(){
- let body;if(GOOGLE_ON){loadCal();const ev=calToday();if(GCAL){EVENTS.length=0;ev.forEach(x=>EVENTS.push(x));if(evSel>=EVENTS.length)evSel=0}}
- if(agView==='dia'){const ev=EVENTS[evSel]||{t:'Nenhum compromisso hoje',s:8,e:8,k:'',prep:['Sua agenda do Google está livre hoje.']};
-  body=`<div class="grid g21"><div class="card"><h3>${GOOGLE_ON?new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',timeZone:'America/Sao_Paulo'}).replace(/^./,c=>c.toUpperCase()):'Segunda, 16 de novembro'}${GOOGLE_ON&&!GCAL&&!GCAL_ERR?' · carregando…':''}${GCAL_ERR?' · <span class="dn" style="font-size:12px">'+esc(GCAL_ERR)+'</span>':''}<span class="sp"></span><span class="pill b">${EVENTS.length} compromissos</span>${isWeekend(new Date())&&GOOGLE_ON?'':`<span class="pill v">previsão: ~${leadForecast(GOOGLE_ON?new Date():new Date(2026,10,16))} leads hoje</span>`}</h3>
-  <div class="day"><div>${[8,9,10,11,12,13,14,15,16,17,18].map(h=>`<div class="hr">${h}:00</div>`).join('')}</div>
-  <div class="slots">${[8,9,10,11,12,13,14,15,16,17,18].map(()=>`<div class="hr"></div>`).join('')}
-  ${EVENTS.map((e,i)=>`<div class="ev ${i===evSel?'on':''}" onclick="evSel=${i};render()" style="top:${(e.s-8)*58+2}px;height:${(e.e-e.s)*58-4}px;background:${e.c}18;border-color:${e.c}"><b>${e.t}</b>${fh(e.s)}–${fh(e.e)} · ${e.k}</div>`).join('')}
-  <div style="position:absolute;left:0;right:0;top:${(10.75-8)*58}px;border-top:2px solid var(--red)"></div></div></div></div>
-  <div class="grid" style="align-content:start"><div class="card"><h3><i data-lucide="sparkles" style="color:var(--violet)"></i>Preparação pela IA</h3><b>${ev.t}</b><div class="muted" style="font-size:12px;margin-bottom:8px">${fh(ev.s)}–${fh(ev.e)}</div><ul style="margin:0;padding-left:18px;font-size:13px">${ev.prep.map(p=>`<li>${p}</li>`).join('')}</ul>
-   ${ev.d?`<div class="row" style="margin-top:12px"><button class="btn sm" onclick="go('conversas')">Ver última conversa</button><button class="btn sm" onclick="go('followup')">Mensagem de confirmação</button></div>`:''}</div>
-   <div class="card"><h3>Hoje no funil</h3><div class="list"><div class="li"><i data-lucide="send"></i><div><div class="t">Follow-ups</div><div class="d">3 atrasados</div></div><div class="r">7</div></div><div class="li"><i data-lucide="alarm-clock" class="dn"></i><div><div class="t">Prazos críticos</div><div class="d">1 proposta vence hoje</div></div><div class="r dn">4</div></div></div></div></div></div>`;
- }else{
-  const base=GOOGLE_ON?new Date():new Date(2026,10,16),vm=new Date(base.getFullYear(),base.getMonth()+AGM,1),Y=vm.getFullYear(),M=vm.getMonth(),last=new Date(Y,M+1,0).getDate(),todayD=AGM===0?base.getDate():AGM<0?99:0,now=AGM===0?base:vm;
-  let EVM=AGM===0?GCAL:GCALM[Y+'-'+M];if(GOOGLE_ON&&AGM!==0&&!EVM)loadMonth(Y,M);if(EVM==='…')EVM=null;
-  const first=new Date(Y,M,1).getDay();const cells=[];for(let i=0;i<first;i++)cells.push(null);for(let d=1;d<=last;d++)cells.push(d);while(cells.length%7)cells.push(null);
-  const byDay={};if(GOOGLE_ON&&EVM){EVM.forEach(e=>{const k=+String(e.start).slice(8,10);(byDay[k]=byDay[k]||[]).push(e)})}
-  else{const demo={3:2,4:1,5:3,6:1,10:2,11:2,12:1,13:3,14:1,16:3,17:2,18:2,19:1,20:2,23:1,24:2,25:1,26:2,27:1};Object.entries(demo).forEach(([d,n])=>{byDay[d]=Array.from({length:n},(_,i)=>({title:['Reunião de diagnóstico','Follow-up de proposta','Call de alinhamento'][i%3],start:`${Y}-${String(M+1).padStart(2,'0')}-${String(d).padStart(2,'0')}T${10+i*2}:00:00-03:00`,attendees:[{name:'Cliente'}]}))})}
-  const all=Object.values(byDay).flat(),ext=all.filter(e=>(e.attendees||[]).length);
-  const wk0=new Date(Y,M,todayD-now.getDay()),wk1=new Date(Y,M,todayD-now.getDay()+7);const inWeek=all.filter(e=>{const d=new Date(e.start);return d>=wk0&&d<wk1});
-  const upcoming=(AGM===0?all.filter(e=>new Date(e.start)>=new Date(Y,M,todayD)):all).sort((x,y)=>new Date(x.start)-new Date(y.start)).slice(0,AGM===0?8:40);
-  const mname=new Date(Y,M,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'}).replace(/^./,c=>c.toUpperCase());
-  const dt=d=>new Date(Y,M,d),realMonth=cells.filter(d=>d&&d<todayD).reduce((a,d)=>a+((LEADDAY||{})[ymdL(dt(d))]||0),0),prevRest=cells.filter(d=>d&&d>=todayD&&!isWeekend(dt(d))).reduce((a,d)=>a+leadForecast(dt(d)),0);
-  body=`<div class="kpis"><div class="kpi"><small>${AGM<0?"Leads no mês":"Leads no mês até hoje"}</small><div class="v">${AGM>0?"—":realMonth}</div><div class="s">1º contato registrado no CRM</div></div><div class="kpi"><small>${AGM===0?"Previsão até o fim do mês":"Previsão do mês"}</small><div class="v">${AGM<0?"—":prevRest}</div><div class="s">mesmos dias do mês anterior</div></div><div class="kpi"><small>Reuniões no mês</small><div class="v">${all.length}</div><div class="s">${ext.length} com gente de fora</div></div><div class="kpi"><small>${AGM===0?"Nesta semana":"Dias úteis no mês"}</small><div class="v">${AGM===0?inWeek.length:cells.filter(d=>d&&!isWeekend(dt(d))).length}</div><div class="s">${AGM===0?(byDay[todayD]||[]).length+" hoje":"seg a sex"}</div></div></div>
-  <div class="grid g21"><div class="card"><h3><button class="iconbtn" aria-label="Mês anterior" onclick="AGM--;render()"><i data-lucide="chevron-left"></i></button><span style="min-width:150px;text-align:center">${mname}</span><button class="iconbtn" aria-label="Próximo mês" onclick="AGM++;render()"><i data-lucide="chevron-right"></i></button>${AGM!==0?'<button class="btn sm" onclick="AGM=0;render()">Hoje</button>':''}${GOOGLE_ON&&!EVM&&!GCAL_ERR?' · carregando…':''}<span class="sp"></span><span class="muted" style="font-size:11.5px;font-weight:400">fim de semana sem previsão · ~N = previsão pelo mesmo dia do mês anterior</span>${GCAL_ERR?' · <span class="dn" style="font-size:12px">'+esc(GCAL_ERR)+'</span>':''}</h3>
-   <div class="cal">${['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map(w=>`<div class="wd">${w}</div>`).join('')}
-   ${cells.map(d=>{if(!d)return '<div class="cd out"></div>';const ev=byDay[d]||[],D0=dt(d),wk=isWeekend(D0),past=d<todayD,n=past?((LEADDAY||{})[ymdL(D0)]||0):leadForecast(D0);
-    return `<div class="cd ${d===todayD?'today':''} ${wk?'wk':''}"><div class="n">${d}${ev.length?`<span class="pill b" style="font-size:9.5px">${ev.length}</span>`:''}</div>${wk?'':`<div class="fc" style="background:${past?'var(--soft)':'var(--blue-soft)'};color:${past?'var(--text)':'var(--blue)'}">${past?'':'~'}${n} lead${n===1?'':'s'}${past?'':' prev.'}</div>`}${ev.slice(0,2).map(e=>`<div class="mt" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(e.title)}">● ${e.allDay?'':hhmm(e.start)+' '}${esc(e.title)}</div>`).join('')}${ev.length>2?`<div class="mt">+${ev.length-2} mais</div>`:''}</div>`}).join('')}</div></div>
-   <div class="card" style="align-self:start"><h3><i data-lucide="calendar-clock"></i>${AGM===0?"Próximas reuniões":"Reuniões do mês"}</h3><div class="list">${upcoming.length?upcoming.map(e=>`<div class="li"><div style="min-width:0"><div class="t">${esc(e.title)}</div><div class="d">${new Date(e.start).toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'})}${e.allDay?'':' · '+hhmm(e.start)}${(e.attendees||[]).length?' · '+esc((e.attendees||[]).map(a=>a.name).slice(0,2).join(', ')):''}</div></div>${e.meet?`<a class="btn sm" style="margin-left:auto" href="${e.meet}" target="_blank" rel="noopener">Meet</a>`:''}</div>`).join(''):`<div class="muted">${AGM===0?'Nenhuma reunião pela frente neste mês.':'Nenhuma reunião neste mês.'}</div>`}</div></div></div>`;
- }
- return `<div class="ph"><div><h1>Agenda</h1><p>${GOOGLE_ON?'Google Agenda conectado':'Exemplo · conecte o Google em Integrações para ver sua agenda'}</p></div><div class="sp"></div><div class="seg"><button class="${agView==='dia'?'on':''}" onclick="agView='dia';render()">Dia</button><button class="${agView==='mes'?'on':''}" onclick="agView='mes';render()">Mês</button></div><button class="btn pri" onclick="toast('Evento criado (demo)')"><i data-lucide="plus"></i>Evento</button></div>${body}`;
-}
 function fh(x){return Math.floor(x)+':'+(x%1?'30':'00')}
 function cAgenda(){if(agView!=='mes')return;
  mk('cFc',{type:'line',data:{labels:['S1 out','S2','S3','S4','S1 nov','S2','S3','S4','S5'],datasets:[{label:'Real',data:[61,58,66,63,64,70,null,null,null],borderColor:css('--blue'),backgroundColor:css('--blue')+'22',fill:true,tension:.3},{label:'Previsão',data:[null,null,null,null,null,70,66,82,79],borderColor:'#e8710a',borderDash:[5,4],tension:.3}]},options:{plugins:{legend:{position:'bottom'}},scales:{x:{grid:{display:false}}}}})}
@@ -732,7 +701,11 @@ function pConversas(){
 
    <details><summary>Cadência sugerida <span class="muted">· ${c.cad.length} passos</span></summary><div class="cad" style="margin-top:12px">${c.cad.map(st=>`<div class="cs"><b>${st[0]} · ${st[1]}</b><span class="muted">${st[2]}</span></div>`).join('')}</div>
     <button class="btn" onclick="toast('Cadência ativada (demo)')"><i data-lucide="play-circle"></i>Ativar cadência</button></details>
-   <details><summary>Critérios de qualificação</summary><div style="margin-top:10px">${c.bant.map(b=>`<div class="fac"><span>${b[0]}</span><div class="track"><span style="width:${b[1]}%;background:${b[1]>=75?'var(--green)':b[1]>=50?'var(--amber)':'var(--red)'}"></span></div><b class="num">${b[1]}</b></div>`).join('')}</div></details>
+   ${(a.compromissos||[]).length?`<section><h4>Compromissos combinados</h4><div class="list">${a.compromissos.map(c=>`<div class="li"><span class="pill ${/n[oó]s/i.test(c.quem||'')?'b':'a'}">${esc(c.quem||'—')}</span><div style="min-width:0"><div class="t">${esc(c.o_que||'')}</div>${c.quando?`<div class="d">${esc(c.quando)}</div>`:''}</div></div>`).join('')}</div></section>`:''}
+ ${(a.objecoes||[]).length?`<details open><summary>Objeções e como responder</summary><div class="list" style="margin-top:8px">${a.objecoes.map(o=>`<div class="li" style="display:block"><div class="t">${esc(o.objecao||'')}</div><div class="d">→ ${esc(o.resposta_sugerida||'')}</div></div>`).join('')}</div></details>`:''}
+ <details><summary>Detalhes extraídos</summary><div style="font-size:13px;line-height:1.7;margin-top:8px">${[['Participantes',(a.participantes||[]).join(', ')],['Decisores',(a.decisores||[]).join(', ')],['Dores',(a.dores||[]).join(' · ')],['Objetivos',(a.objetivos||[]).join(' · ')],['Orçamento citado',a.orcamento_mencionado],['Valor estimado',a.valor_estimado],['Prazo citado',a.prazo_mencionado],['Temperatura',a.temperatura],['Estágio sugerido',a.estagio_sugerido]].filter(x=>x[1]).map(x=>`<div><b>${x[0]}:</b> ${esc(x[1])}</div>`).join('')||'<span class="muted">Nada além do resumo.</span>'}</div></details>
+ ${a.negocio_crm&&D.find(x=>x.t===a.negocio_crm)?`<div class="row" style="flex-wrap:wrap"><button class="btn" onclick="applyAn('${key}')"><i data-lucide="check-check"></i>Aplicar ao negócio "${esc(a.negocio_crm)}"</button><span class="muted" style="font-size:12px">atualiza estágio${a.estagio_sugerido?' ('+esc(a.estagio_sugerido)+')':''}, termômetro e próxima ação</span></div>`:''}
+ <details><summary>Critérios de qualificação</summary><div style="margin-top:10px">${c.bant.map(b=>`<div class="fac"><span>${b[0]}</span><div class="track"><span style="width:${b[1]}%;background:${b[1]>=75?'var(--green)':b[1]>=50?'var(--amber)':'var(--red)'}"></span></div><b class="num">${b[1]}</b></div>`).join('')}</div></details>
    <details><summary>Transcrição completa <span class="muted">· ${c.tr.length} trechos</span></summary><div class="tr" style="margin-top:12px">${c.tr.map(l=>`<div class="tl"><time>${l[0]}</time><div><b style="color:${l[1]==='Maykom'?'var(--blue)':'var(--text)'}">${l[1]}</b><div>${l[2]}</div></div></div>`).join('')}</div></details>
   </div>`}
  </div>`;
@@ -998,19 +971,21 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',re
 /* ============ GOOGLE AO VIVO (Gmail + Agenda) ============ */
 let GOOGLE_ON=false,GMAIL=null,GMAIL_ERR=null,GFOLD='strat',GSEL=0,GBODY={},GCAL=null,GCAL_ERR=null,GMONTH=null;
 async function api(path,opts={}){const {data}=await sb.auth.getSession();const r=await fetch(path,{...opts,headers:{...(opts.headers||{}),Authorization:'Bearer '+(data.session&&data.session.access_token),'content-type':'application/json'}});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||('Erro '+r.status));return j}
+const APICACHE={};
+async function cachedApi(k,path){const c=APICACHE[k];if(c&&Date.now()-c.t<300000)return c.v;const v=await api(path);APICACHE[k]={t:Date.now(),v};return v}
 async function checkGoogle(){try{const {data}=await sb.from('integrations').select('status').eq('provider','google').maybeSingle();GOOGLE_ON=!!(data&&data.status==='on')}catch(e){GOOGLE_ON=false}}
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const hhmm=iso=>new Date(iso).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:'America/Sao_Paulo'});
 const dshort=iso=>{const d=new Date(iso),t=new Date();return d.toDateString()===t.toDateString()?hhmm(iso):d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})};
 let GHIDDEN=0;
 function pEmailsLive(){
- if(!GMAIL&&!GMAIL_ERR){api('/api/google/gmail?days=30').then(j=>{GMAIL=j.messages;GHIDDEN=j.hidden||0}).catch(e=>{GMAIL_ERR=e.message}).finally(()=>{if(cur()==='emails')render()})}
+ if(!GMAIL&&!GMAIL_ERR){cachedApi('emails','/api/google/gmail?days=30').then(j=>{GMAIL=j.messages;GHIDDEN=j.hidden||0}).catch(e=>{GMAIL_ERR=e.message}).finally(()=>{if(cur()==='emails')render()})}
  const all=GMAIL||[];const F={replies:all.filter(m=>m.isReply),crm:all.filter(m=>m.isContact),new:all.filter(m=>!m.isReply&&!m.isContact),unread:all.filter(m=>m.unread)};
  if(!F[GFOLD])GFOLD='replies';const list=F[GFOLD];if(GSEL>=list.length)GSEL=0;const m=list[GSEL];
  if(m&&!GBODY[m.id]){GBODY[m.id]='…';api('/api/google/gmail?id='+m.id).then(j=>{GBODY[m.id]=j.body||m.snippet}).catch(()=>{GBODY[m.id]=m.snippet}).finally(()=>{if(cur()==='emails')render()})}
  const folders=[['replies','Respostas de clientes','reply'],['crm','Contatos do CRM','users'],['new','Novos contatos','user-plus'],['unread','Não lidos','mail']];
  return `<div class="ph"><div><h1>E-mails estratégicos</h1><p>Respostas e mensagens de clientes dos últimos 30 dias. Resumos de reunião ficam em Conversas; promoções e notificações ficam de fora.</p></div><div class="sp"></div>
- <span class="pill g"><i data-lucide="check"></i>Gmail conectado</span><button class="btn" onclick="GMAIL=null;GMAIL_ERR=null;GBODY={};render()"><i data-lucide="refresh-cw"></i>Atualizar</button></div>
+ <span class="pill g"><i data-lucide="check"></i>Gmail conectado</span><button class="btn" onclick="GMAIL=null;GMAIL_ERR=null;GBODY={};delete APICACHE.emails;render()"><i data-lucide="refresh-cw"></i>Atualizar</button></div>
  ${GMAIL_ERR?`<div class="note" style="margin:0 0 14px;background:var(--red-soft)"><b>Não consegui ler o Gmail:</b> ${esc(GMAIL_ERR)} ${/Conectar/.test(GMAIL_ERR)?'<a style="color:var(--blue);cursor:pointer" onclick="go(\'integracoes\')">Ir para Integrações →</a>':''}</div>`:''}
  <div class="kpis"><div class="kpi"><small>Respostas de clientes</small><div class="v" style="color:var(--blue)">${GMAIL?F.replies.length:'…'}</div></div><div class="kpi"><small>De contatos do CRM</small><div class="v">${GMAIL?F.crm.length:'…'}</div></div><div class="kpi"><small>Não lidos</small><div class="v">${GMAIL?F.unread.length:'…'}</div></div><div class="kpi"><small>Automáticos ignorados</small><div class="v muted">${GMAIL?GHIDDEN:'…'}</div><div class="s">promoções, notificações, newsletters</div></div></div>
  <div class="mail"><div class="fold">${folders.map(f=>`<button class="${GFOLD===f[0]?'on':''}" onclick="GFOLD='${f[0]}';GSEL=0;render()"><i data-lucide="${f[2]}"></i>${f[1]}<span>${GMAIL?F[f[0]].length:''}</span></button>`).join('')}
@@ -1031,7 +1006,7 @@ async function gReply(id){const m=(GMAIL||[]).find(x=>x.id===id),t=document.getE
   const d=D.find(x=>x.p===m.fromName);if(d)dbActivity(d,'email','E-mail respondido',m.subject)}
  catch(e){r.className='dn';r.textContent='Não foi possível enviar: '+e.message}b.disabled=false}
 function loadCal(){if(GCAL||GCAL_ERR)return;const t=new Date(),y=t.getFullYear(),mo=String(t.getMonth()+1).padStart(2,'0'),last=new Date(y,t.getMonth()+1,0).getDate();
- api(`/api/google/calendar?from=${y}-${mo}-01&to=${y}-${mo}-${last}`).then(j=>{GCAL=j.events}).catch(e=>{GCAL_ERR=e.message}).finally(()=>{if(cur()==='agenda')render()})}
+ api(`/api/google/calendar?from=${y}-${mo}-01&to=${y}-${mo}-${last}`).then(j=>{GCAL=j.events;GCALAT=Date.now()}).catch(e=>{GCAL_ERR=e.message}).finally(()=>{if(cur()==='agenda')render()})}
 function calToday(){const today=new Date().toLocaleDateString('sv-SE',{timeZone:'America/Sao_Paulo'});const pal=['#1a73e8','#f9ab00','#1e8e3e','#a142f4','#12b5cb','#e8710a'];
  return (GCAL||[]).filter(e=>!e.allDay&&e.start.slice(0,10)===today).map((e,i)=>{const h=d=>{const x=new Date(d);const p=x.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',timeZone:'America/Sao_Paulo'}).split(':');return +p[0]+(+p[1])/60};
   const s=Math.max(8,h(e.start)),en=Math.min(19,Math.max(s+.5,h(e.end)));const who=e.attendees.map(a=>a.name).slice(0,4);
@@ -1039,7 +1014,7 @@ function calToday(){const today=new Date().toLocaleDateString('sv-SE',{timeZone:
 function calMonthCounts(){const c={};(GCAL||[]).forEach(e=>{const d=new Date(e.start);if(!isNaN(d))c[+e.start.slice(8,10)]=(c[+e.start.slice(8,10)]||0)+1});return c}
 
 let GTR=null,GTR_ERR=null,GTRSEL=null,GTRTXT={};
-function loadTr(){if(GTR||GTR_ERR)return;api('/api/google/transcripts').then(j=>{GTR=j.files}).catch(e=>{GTR_ERR=e.message}).finally(()=>{if(cur()==='conversas')render()})}
+function loadTr(){if(GTR||GTR_ERR)return;cachedApi('transcripts','/api/google/transcripts').then(j=>{GTR=j.files}).catch(e=>{GTR_ERR=e.message}).finally(()=>{if(cur()==='conversas')render()})}
 function trList(){if(!GOOGLE_ON)return '';loadTr();
  return `<div class="muted" style="font-size:11.5px;font-weight:600;margin:14px 0 6px">GEMINI · MEET (GOOGLE DRIVE)</div>${GTR_ERR?`<div class="note" style="margin:0">${esc(GTR_ERR)}</div>`:!GTR?'<div class="muted" style="font-size:12.5px">Buscando transcrições…</div>':GTR.length?GTR.map(f=>`<button class="cxi ${GTRSEL===f.id?'on':''}" onclick="openTr('${f.id}')"><div class="av"><i data-lucide="file-text" style="width:16px"></i></div><div style="min-width:0;text-align:left"><b>${esc(f.name.replace(/\\s*-\\s*(Transcri[çc][ãa]o|Transcript).*$/i,''))}</b><span>${f.kind} · ${new Date(f.modified).toLocaleDateString('pt-BR')}</span></div></button>`).join(''):'<div class="muted" style="font-size:12.5px">Nenhuma transcrição nos últimos 60 dias.</div>'}`}
 function openTr(id){GTRSEL=id;if(!GTRTXT[id]){GTRTXT[id]='…';api('/api/google/transcripts?id='+id).then(j=>{GTRTXT[id]=j.text}).catch(e=>{GTRTXT[id]='Erro: '+e.message}).finally(()=>render())}render()}
@@ -1049,7 +1024,7 @@ function trView(){const f=(GTR||[]).find(x=>x.id===GTRSEL);if(!f)return '';const
  <section><h4>Texto</h4><div class="mbody" style="max-height:620px;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:16px">${t==='…'||!t?'Carregando…':esc(t)}</div></section></div>`}
 
 let GSB=null,GSB_ERR=null;
-function loadSb(){if(GSB||GSB_ERR)return;api('/api/google/gmail?source=summaries&days=60').then(j=>{GSB=j.messages}).catch(e=>{GSB_ERR=e.message}).finally(()=>{if(cur()==='conversas')render()})}
+function loadSb(){if(GSB||GSB_ERR)return;cachedApi('summaries','/api/google/gmail?source=summaries&days=60').then(j=>{GSB=j.messages}).catch(e=>{GSB_ERR=e.message}).finally(()=>{if(cur()==='conversas')render()})}
 function sbList(){if(!GOOGLE_ON)return '';loadSb();
  return `<div class="muted" style="font-size:11.5px;font-weight:600;margin:14px 0 6px">RESUMOS POR E-MAIL (SALESBUD · GEMINI)</div>${GSB_ERR?`<div class="note" style="margin:0">${esc(GSB_ERR)}</div>`:!GSB?'<div class="muted" style="font-size:12.5px">Buscando e-mails do SalesBud…</div>':GSB.length?GSB.map(f=>`<button class="cxi ${GTRSEL==='sb:'+f.id?'on':''}" onclick="openSb('${f.id}')"><div class="av" style="background:var(--${f.type==='salesbud'?'amber':'blue'}-soft);color:var(--${f.type==='salesbud'?'amber':'blue'})"><i data-lucide="${f.type==='salesbud'?'mic':'sparkles'}" style="width:16px"></i></div><div style="min-width:0;text-align:left"><b>${esc(f.subject.replace(/^\s*(O resumo do seu call chegou!?|Anotações\s*:)\s*/i,'')||f.subject)}</b><span>${f.type==='salesbud'?'SalesBud':'Gemini'} · ${new Date(f.date).toLocaleDateString('pt-BR')}</span></div></button>`).join(''):'<div class="muted" style="font-size:12.5px">Nenhum resumo por e-mail nos últimos 60 dias.</div>'}`}
 function openSb(id){GTRSEL='sb:'+id;if(!GTRTXT['sb:'+id]){GTRTXT['sb:'+id]='…';api('/api/google/gmail?id='+id).then(j=>{GTRTXT['sb:'+id]=j.body}).catch(e=>{GTRTXT['sb:'+id]='Erro: '+e.message}).finally(()=>render())}render()}
@@ -1117,13 +1092,97 @@ let FU_PREFILL=null;
 function pConversasLive(){
  if(!GTRSEL&&GSB&&GSB.length)setTimeout(()=>openSb(GSB[0].id));
  const view=GTRSEL?(String(GTRSEL).startsWith('sb:')?sbView():trView()):`<div class="card" style="text-align:center;padding:40px"><i data-lucide="messages-square"></i><p class="muted">${GSB||GTR?'Selecione um resumo ou transcrição à esquerda.':'Buscando seus resumos de reunião…'}</p></div>`;
- return `<div class="ph"><div><h1>Conversas</h1><p>Resumos do SalesBud ("O resumo do seu call chegou!"), anotações do Gemini ("Anotações:") e transcrições do Meet, com análise da IA</p></div><div class="sp"></div><button class="btn" onclick="GSB=null;GSB_ERR=null;GTR=null;GTR_ERR=null;render()"><i data-lucide="refresh-cw"></i>Atualizar</button></div>
+ return `<div class="ph"><div><h1>Conversas</h1><p>Resumos do SalesBud ("O resumo do seu call chegou!"), anotações do Gemini ("Anotações:") e transcrições do Meet, com análise da IA</p></div><div class="sp"></div><button class="btn" onclick="GSB=null;GSB_ERR=null;GTR=null;GTR_ERR=null;delete APICACHE.summaries;delete APICACHE.transcripts;render()"><i data-lucide="refresh-cw"></i>Atualizar</button></div>
  <div class="cx"><div class="cxl">
-  <label class="drop" for="up"><i data-lucide="upload-cloud"></i><b>Anexar conversa</b><span>áudio ou gravação (transcrição entra com a chave de transcrição)</span></label>
-  <input type="file" id="up" accept="audio/*,video/*,.txt" style="display:none" onchange="toast('Arquivo recebido: '+this.files[0].name)">
   ${sbList()}${trList()}
  </div>${view}</div>`;
 }
+/* ============ AGENDA (dia · semana · mês) ============ */
+let AGD=0,AGW=0,AGSEL=null,EVIDX={},GCALAT=0;
+const baseDate=()=>GOOGLE_ON?new Date():new Date(2026,10,16);
+const evKey=e=>e.allDay?String(e.start).slice(0,10):ymdL(new Date(e.start));
+const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x};
+function demoMonth(Y,M){const demo={3:2,4:1,5:3,6:1,10:2,11:2,12:1,13:3,14:1,16:3,17:2,18:2,19:1,20:2,23:1,24:2,25:1,26:2,27:1},out=[];
+ Object.entries(demo).forEach(([d,n])=>{for(let i=0;i<n;i++){const st=new Date(Y,M,+d,9+i*2+(+d%2),i%2?30:0),en=new Date(st.getTime()+45*60000);const dd=D[(+d+i)%Math.max(1,D.length)]||{};
+  out.push({id:`demo-${Y}-${M}-${d}-${i}`,title:['Diagnóstico','Follow-up de proposta','Alinhamento de escopo'][i%3]+(dd.e?' · '+dd.e:''),start:st.toISOString(),end:en.toISOString(),allDay:false,meet:'https://meet.google.com/',attendees:dd.p?[{name:dd.p,email:dd.email||''}]:[],description:''})}});return out}
+function monthEvents(Y,M){if(!GOOGLE_ON)return demoMonth(Y,M);const b=baseDate();if(Y===b.getFullYear()&&M===b.getMonth()){loadCal();return GCAL}
+ const k=Y+'-'+M;if(!GCALM[k])loadMonth(Y,M);return GCALM[k]==='…'?null:GCALM[k]}
+function eventsOn(date){const ev=monthEvents(date.getFullYear(),date.getMonth());if(!ev)return null;const k=ymdL(date);return ev.filter(e=>evKey(e)===k).sort((a,b)=>String(a.start).localeCompare(String(b.start)))}
+function idx(e){EVIDX[e.id]=e;return e.id}
+function evLine(e){return `<div class="li" style="cursor:pointer" onclick="evOpen('${idx(e)}')"><div style="min-width:0"><div class="t">${esc(e.title)}</div><div class="d">${e.allDay?'Dia inteiro':hhmm(e.start)+'–'+hhmm(e.end)}${(e.attendees||[]).length?' · '+esc(e.attendees.map(a=>a.name||a.email).slice(0,2).join(', ')):''}</div></div>${e.meet?'<span class="pill b" style="margin-left:auto">Meet</span>':''}</div>`}
+function dealFor(e){const em=(e.attendees||[]).map(a=>(a.email||'').toLowerCase()).filter(Boolean);
+ return D.find(d=>d.email&&em.includes(d.email.toLowerCase()))||D.find(d=>d.e&&d.e!=='—'&&String(e.title).toLowerCase().includes(d.e.toLowerCase()))||null}
+function stagePlan(d){if(!d)return ['Confirme o objetivo da reunião logo no início','Descubra a dor principal e quem decide','Combine o próximo passo com data antes de encerrar'];
+ const s=d.s;return s==='Lead novo'||s==='Qualificação'?['Entenda a dor e o impacto em números','Mapeie quem decide e o orçamento disponível','Saia com uma reunião de diagnóstico marcada']
+  :s==='Diagnóstico'?['Recapitule a dor e confirme as prioridades','Mostre um caso parecido com resultado','Combine a data de envio da proposta']
+  :s==='Proposta enviada'?['Pergunte o que acharam da proposta antes de falar','Trate objeções de preço com escopo menor ou parcelamento','Defina quem assina e até quando']
+  :s==='Negociação'?['Feche os pontos em aberto um a um','Ofereça a assinatura digital ainda na call','Confirme data de início e onboarding']:['Confirme a satisfação e os resultados','Peça uma indicação','Combine a próxima revisão']}
+function evBody(e,remind){const d=dealFor(e),[tl,tc]=d?temp(d.sc):['',''],mins=Math.round((new Date(e.start)-Date.now())/60000);
+ return `${remind?`<div class="note" style="margin:0 0 12px;background:var(--amber-soft)"><b>Sua reunião começa em ${Math.max(0,mins)} min.</b> Abra o link, tenha o objetivo claro e anote o próximo passo no fim.</div>`:''}
+ <h3 style="margin:0 0 2px">${esc(e.title)}</h3><div class="muted" style="font-size:12.5px">${new Date(e.start).toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long'})}${e.allDay?' · dia inteiro':' · '+hhmm(e.start)+'–'+hhmm(e.end)}${e.location?' · '+esc(e.location):''}</div>
+ ${(e.attendees||[]).length?`<label>Participantes</label><div class="subs">${e.attendees.map(a=>`<span class="pill n">${esc(a.name||a.email)}</span>`).join('')}</div>`:''}
+ ${d?`<label>Negócio no CRM</label><div class="li"><div style="min-width:0"><div class="t">${esc(d.t)} · ${esc(d.e)}</div><div class="d">${esc(d.s)} · ${fmt(d.v)} · próxima ação: ${esc(d.nx)}</div></div><span class="pill ${tc}" style="margin-left:auto">${tl} ${d.sc}</span></div>`:'<div class="note">Nenhum negócio do CRM ligado a esses participantes.</div>'}
+ <label>Como conduzir</label><ol style="margin:0;padding-left:18px;font-size:13px;line-height:1.6">${stagePlan(d).map(x=>`<li>${x}</li>`).join('')}</ol>
+ ${e.description?`<details style="margin-top:10px"><summary>Descrição do convite</summary><div class="muted" style="font-size:12.5px;white-space:pre-line;margin-top:6px">${esc(e.description)}</div></details>`:''}
+ <div id="evai" style="font-size:13px;margin-top:10px;white-space:pre-line"></div>
+ <div class="row" style="margin-top:14px;justify-content:flex-end;flex-wrap:wrap"><button class="btn" onclick="closeModal()">Fechar</button><button class="btn" onclick="evPrep('${e.id}')"><i data-lucide="sparkles"></i>Roteiro com IA</button>${e.meet?`<a class="btn pri" href="${e.meet}" target="_blank" rel="noopener"><i data-lucide="video"></i>Entrar no Meet</a>`:''}</div>`}
+function evOpen(id){const e=EVIDX[id];if(e)modal(evBody(e,false))}
+async function evPrep(id){const e=EVIDX[id],box=document.getElementById('evai');if(!e||!box)return;box.className='muted';box.textContent='Preparando roteiro com o Gemini…';
+ try{const j=await api('/api/ai/chat',{method:'POST',body:JSON.stringify({messages:[{role:'user',text:`Prepare-me para a reunião "${e.title}" (${new Date(e.start).toLocaleString('pt-BR')}) com ${(e.attendees||[]).map(a=>a.name||a.email).join(', ')||'participantes não informados'}. Use o que houver no CRM sobre essas pessoas/empresa. Dê: objetivo da reunião, 3 perguntas-chave, objeções prováveis com resposta curta e o próximo passo a propor. Máximo 12 linhas.`}]})});box.className='';box.textContent=j.text}
+ catch(e2){box.className='dn';box.textContent='Não consegui gerar o roteiro: '+e2.message}}
+/* aviso 10 min antes */
+function checkReminders(){if(!GOOGLE_ON||!GCAL)return;const now=Date.now();
+ GCAL.forEach(e=>{if(e.allDay)return;const diff=new Date(e.start)-now,key='crmRem:'+e.id+':'+e.start;if(diff>0&&diff<=10.5*60000){let done=false;try{done=!!localStorage.getItem(key);localStorage.setItem(key,'1')}catch(x){done=!!REMDONE[key];REMDONE[key]=1}
+  if(!done){idx(e);modal(evBody(e,true));try{if(window.Notification&&Notification.permission==='granted')new Notification('Reunião em 10 min',{body:e.title})}catch(x){}const t=document.title;document.title='⏰ '+e.title;setTimeout(()=>document.title=t,15000)}}})}
+let REMDONE={};
+function pAgenda(){
+ const b=baseDate();let body='',nav='',title='';
+ if(agView==='dia'){const day=addDays(b,AGD),evs=eventsOn(day),wk=isWeekend(day),isToday=AGD===0;
+  title=day.toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'}).replace(/^./,c=>c.toUpperCase());
+  nav=`<button class="iconbtn" aria-label="Dia anterior" onclick="AGD--;render()"><i data-lucide="chevron-left"></i></button><span style="min-width:220px;text-align:center">${title}</span><button class="iconbtn" aria-label="Próximo dia" onclick="AGD++;render()"><i data-lucide="chevron-right"></i></button>${AGD?'<button class="btn sm" onclick="AGD=0;render()">Hoje</button>':''}`;
+  const timed=(evs||[]).filter(e=>!e.allDay),hrs=[7,8,9,10,11,12,13,14,15,16,17,18,19],H=58,pos=iso=>{const x=new Date(iso);return x.getHours()+x.getMinutes()/60};const pal=['#1a73e8','#f9ab00','#1e8e3e','#a142f4','#12b5cb','#e8710a'];
+  const nowLine=isToday?pos(new Date().toISOString()):-1;
+  body=`<div class="grid g21"><div class="card"><h3>${nav}<span class="sp"></span><span class="pill b">${evs?evs.length:'…'} compromissos</span>${wk?'':`<span class="pill v">~${leadForecast(day)} leads prev.</span>`}</h3>
+   ${(evs||[]).filter(e=>e.allDay).map(e=>`<div class="li" style="cursor:pointer;margin-bottom:6px" onclick="evOpen('${idx(e)}')"><b class="t">${esc(e.title)}</b><span class="muted" style="margin-left:auto;font-size:12px">dia inteiro</span></div>`).join('')}
+   <div class="day"><div>${hrs.map(h=>`<div class="hr">${h}:00</div>`).join('')}</div><div class="slots">${hrs.map(()=>`<div class="hr"></div>`).join('')}
+   ${timed.map((e,i)=>{const s=Math.max(7,pos(e.start)),en=Math.min(20,Math.max(s+.4,pos(e.end)));return `<div class="ev" onclick="evOpen('${idx(e)}')" style="top:${(s-7)*H+2}px;height:${(en-s)*H-4}px;background:${pal[i%6]}18;border-color:${pal[i%6]}"><b>${esc(e.title)}</b>${hhmm(e.start)}–${hhmm(e.end)}${e.meet?' · Meet':''}</div>`}).join('')}
+   ${nowLine>=7&&nowLine<=20?`<div style="position:absolute;left:0;right:0;top:${(nowLine-7)*H}px;border-top:2px solid var(--red)"></div>`:''}</div></div></div>
+   <div class="card" style="align-self:start"><h3><i data-lucide="list"></i>Compromissos do dia</h3><div class="list">${evs===null?'<div class="muted">Carregando…</div>':evs.length?evs.map(evLine).join(''):'<div class="muted">Nada marcado neste dia.</div>'}</div>
+   <div class="note">Clique numa reunião para ver participantes, negócio do CRM e como conduzir. Você recebe um aviso 10 min antes de cada reunião.</div></div></div>`;
+ }else if(agView==='semana'){const mon=addDays(b,-((b.getDay()+6)%7)+AGW*7),days=[...Array(7)].map((_,i)=>addDays(mon,i)),sun=days[6];
+  title=`${mon.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})} – ${sun.toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'})}`;
+  nav=`<button class="iconbtn" aria-label="Semana anterior" onclick="AGW--;render()"><i data-lucide="chevron-left"></i></button><span style="min-width:220px;text-align:center">${title}</span><button class="iconbtn" aria-label="Próxima semana" onclick="AGW++;render()"><i data-lucide="chevron-right"></i></button>${AGW?'<button class="btn sm" onclick="AGW=0;render()">Esta semana</button>':''}`;
+  const t0=new Date();t0.setHours(0,0,0,0);
+  body=`<div class="card"><h3>${nav}</h3><div class="cal" style="grid-template-columns:repeat(7,minmax(0,1fr))">${days.map(d=>{const evs=eventsOn(d),wk=isWeekend(d),past=d<t0,isT=ymdL(d)===ymdL(new Date()),n=past?((LEADDAY||{})[ymdL(d)]||0):leadForecast(d);
+   return `<div class="cd ${isT?'today':''} ${wk?'wk':''}" style="min-height:260px;cursor:pointer" onclick="if(event.target===this||event.target.classList.contains('n')){agView='dia';AGD=Math.round((new Date(${d.getFullYear()},${d.getMonth()},${d.getDate()})-new Date(baseDate().getFullYear(),baseDate().getMonth(),baseDate().getDate()))/864e5);render()}"><div class="n">${d.toLocaleDateString('pt-BR',{weekday:'short'})} ${d.getDate()}</div>${wk?'':`<div class="fc" style="background:${past?'var(--soft)':'var(--blue-soft)'};color:${past?'var(--text)':'var(--blue)'}">${past?'':'~'}${n} lead${n===1?'':'s'}</div>`}
+    ${evs===null?'<div class="mt">…</div>':evs.map(e=>`<div class="mt" style="cursor:pointer;border-left:3px solid var(--blue);padding:3px 6px;border-radius:4px;background:var(--blue-soft);color:var(--text);margin-top:4px;white-space:normal" onclick="event.stopPropagation();evOpen('${idx(e)}')">${e.allDay?'':'<b>'+hhmm(e.start)+'</b> '}${esc(e.title)}</div>`).join('')}</div>`}).join('')}</div>
+   <div class="note">Clique numa reunião para ver os detalhes, ou no número do dia para abrir a visão Dia. Fim de semana sem previsão; a previsão usa o mesmo dia do mês anterior.</div></div>`;
+ }else{
+  const vm=new Date(b.getFullYear(),b.getMonth()+AGM,1),Y=vm.getFullYear(),M=vm.getMonth(),last=new Date(Y,M+1,0).getDate(),todayD=AGM===0?b.getDate():AGM<0?99:0;
+  const first=new Date(Y,M,1).getDay();const cells=[];for(let i=0;i<first;i++)cells.push(null);for(let d=1;d<=last;d++)cells.push(d);while(cells.length%7)cells.push(null);
+  const EVM=monthEvents(Y,M),byDay={};(EVM||[]).forEach(e=>{const k=evKey(e);if(k.slice(0,7)===`${Y}-${String(M+1).padStart(2,'0')}`){const dd=+k.slice(8,10);(byDay[dd]=byDay[dd]||[]).push(e)}});
+  const all=Object.values(byDay).flat(),ext=all.filter(e=>(e.attendees||[]).length),dt=d=>new Date(Y,M,d);
+  const realMonth=cells.filter(d=>d&&d<todayD).reduce((a,d)=>a+((LEADDAY||{})[ymdL(dt(d))]||0),0),prevRest=cells.filter(d=>d&&d>=todayD&&!isWeekend(dt(d))).reduce((a,d)=>a+leadForecast(dt(d)),0);
+  const sel=AGSEL==='all'?null:AGSEL&&AGSEL.slice(0,7)===`${Y}-${String(M+1).padStart(2,'0')}`?+AGSEL.slice(8,10):(AGM===0?todayD:null);
+  const selList=sel?(byDay[sel]||[]).sort((a,c)=>String(a.start).localeCompare(String(c.start))):all.sort((a,c)=>String(a.start).localeCompare(String(c.start)));
+  const mname=vm.toLocaleDateString('pt-BR',{month:'long',year:'numeric'}).replace(/^./,c=>c.toUpperCase());
+  nav=`<button class="iconbtn" aria-label="Mês anterior" onclick="AGM--;AGSEL=null;render()"><i data-lucide="chevron-left"></i></button><span style="min-width:150px;text-align:center">${mname}</span><button class="iconbtn" aria-label="Próximo mês" onclick="AGM++;AGSEL=null;render()"><i data-lucide="chevron-right"></i></button>${AGM?'<button class="btn sm" onclick="AGM=0;AGSEL=null;render()">Hoje</button>':''}${GOOGLE_ON&&!EVM?' · carregando…':''}`;
+  body=`<div class="kpis"><div class="kpi"><small>${AGM<0?'Leads no mês':'Leads no mês até hoje'}</small><div class="v">${AGM>0?'—':realMonth}</div><div class="s">1º contato registrado no CRM</div></div><div class="kpi"><small>${AGM===0?'Previsão até o fim do mês':'Previsão do mês'}</small><div class="v">${AGM<0?'—':prevRest}</div><div class="s">mesmos dias do mês anterior</div></div><div class="kpi"><small>Reuniões no mês</small><div class="v">${all.length}</div><div class="s">${ext.length} com gente de fora</div></div><div class="kpi"><small>Dias úteis</small><div class="v">${cells.filter(d=>d&&!isWeekend(dt(d))).length}</div><div class="s">seg a sex</div></div></div>
+  <div class="grid g21"><div class="card"><h3>${nav}<span class="sp"></span><span class="muted" style="font-size:11.5px;font-weight:400">clique num dia para ver as reuniões</span></h3>
+   <div class="cal">${['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map(w=>`<div class="wd">${w}</div>`).join('')}
+   ${cells.map(d=>{if(!d)return '<div class="cd out"></div>';const ev=byDay[d]||[],D0=dt(d),wk=isWeekend(D0),past=d<todayD,n=past?((LEADDAY||{})[ymdL(D0)]||0):leadForecast(D0);
+    return `<div class="cd ${d===todayD&&AGM===0?'today':''} ${wk?'wk':''}" style="cursor:pointer;${sel===d?'box-shadow:0 0 0 2px var(--blue)':''}" onclick="AGSEL='${ymdL(D0)}';render()"><div class="n">${d}${ev.length?`<span class="pill b" style="font-size:9.5px">${ev.length}</span>`:''}</div>${wk?'':`<div class="fc" style="background:${past?'var(--soft)':'var(--blue-soft)'};color:${past?'var(--text)':'var(--blue)'}">${past?'':'~'}${n} lead${n===1?'':'s'}${past?'':' prev.'}</div>`}${ev.slice(0,2).map(e=>`<div class="mt" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">● ${e.allDay?'':hhmm(e.start)+' '}${esc(e.title)}</div>`).join('')}${ev.length>2?`<div class="mt">+${ev.length-2} mais</div>`:''}</div>`}).join('')}</div></div>
+   <div class="card" style="align-self:start"><h3><i data-lucide="calendar-clock"></i>${sel?'Reuniões de '+new Date(Y,M,sel).toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'}):'Reuniões do mês'}<span class="sp"></span>${sel?`<a onclick="AGSEL='all';render()">ver mês</a>`:''}</h3>
+    <div class="list">${EVM===null?'<div class="muted">Carregando…</div>':selList.length?selList.map(e=>sel?evLine(e):evLine(e).replace('<div class="d">',`<div class="d">${new Date(e.start).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})} · `)).join(''):`<div class="muted">${sel?'Nenhuma reunião neste dia.':'Nenhuma reunião neste mês.'}</div>`}</div></div></div>`;
+ }
+ return `<div class="ph"><div><h1>Agenda</h1><p>${GOOGLE_ON?'Google Agenda conectado · aviso 10 min antes de cada reunião':'Exemplo · conecte o Google em Integrações para ver sua agenda'}</p></div><div class="sp"></div><div class="seg"><button class="${agView==='dia'?'on':''}" onclick="agView='dia';render()">Dia</button><button class="${agView==='semana'?'on':''}" onclick="agView='semana';render()">Semana</button><button class="${agView==='mes'?'on':''}" onclick="agView='mes';render()">Mês</button></div>${window.Notification&&Notification.permission==='default'?'<button class="btn" onclick="Notification.requestPermission().then(()=>render())"><i data-lucide="bell-ring"></i>Avisos no navegador</button>':''}</div>${body}`;
+}
+
+async function applyAn(key){const a=AN[key]&&AN[key].data,d=a&&D.find(x=>x.t===a.negocio_crm);if(!d||!d.uuid){toast('Negócio não encontrado no banco');return}
+ const t=a.termometro||{},sc=Math.round(((t.orcamento||0)+(t.autoridade||0)+(t.necessidade||0)+(t.prazo||0)+(t.fit||0))/5),ps=a.proximo_passo||{},n=+((ps.quando||'').match(/D\+(\d+)/)||[])[1]||(/amanh/i.test(ps.quando||'')?1:0);
+ const up={score:sc,next_action:ps.acao||d.nx,next_action_at:ymdL(addDays(new Date(),n)),last_activity_at:new Date().toISOString()};if(STAGE_ID[a.estagio_sugerido])up.stage_id=STAGE_ID[a.estagio_sugerido];
+ const {error}=await sb.from('deals').update(up).eq('id',d.uuid);if(error){toast('Erro: '+error.message);return}
+ await sb.from('activities').insert({deal_id:d.uuid,type:'transcription',title:'Análise de reunião aplicada pela IA',detail:a.resumo||'',by_ai:true,source:'ai:'+key});await loadDeals();render();toast('Negócio atualizado')}
 /* ============ SUPABASE: carregar e gravar ============ */
 let LIVE=false;
 const fmtD=d=>d?d.slice(8,10)+'/'+d.slice(5,7):'—';
@@ -1170,7 +1229,7 @@ async function boot(){
  if(!data.session){location.replace('index.html');return}
  const u=data.session.user;CRM_USER={email:u.email,name:(u.user_metadata&&u.user_metadata.name)||u.email.split('@')[0].replace(/[._-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase())};
  document.getElementById('mename').textContent=CRM_USER.name;document.getElementById('memail').textContent=CRM_USER.email;document.getElementById('meav').textContent=CRM_USER.name.split(' ').map(x=>x[0]).slice(0,2).join('').toUpperCase();
- try{await loadDeals();LIVE=true;await checkGoogle();await loadActs();await loadLeadDays()}catch(e){toast('Não consegui ler o banco: '+e.message)}
+ try{await loadDeals();LIVE=true;await checkGoogle();await loadActs();await loadLeadDays();if(GOOGLE_ON){loadCal();setInterval(()=>{if(GCAL&&Date.now()-GCALAT>6e5){GCAL=null;GCAL_ERR=null;loadCal()}checkReminders()},30000);setTimeout(checkReminders,4000)}}catch(e){toast('Não consegui ler o banco: '+e.message)}
  render();
 }
 boot();

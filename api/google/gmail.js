@@ -3,7 +3,7 @@
 // GET  /api/google/gmail?id=…     → corpo completo de um e-mail
 // POST /api/google/gmail          → responde na mesma conversa {threadId, messageId, to, subject, body}
 import { json, userFromRequest, sbAdmin } from '../_lib.js';
-import { googleToken, gapi } from '../_google.js';
+import { googleToken, gapi, inBatches } from '../_google.js';
 
 const G = 'https://gmail.googleapis.com/gmail/v1/users/me';
 
@@ -39,8 +39,8 @@ export async function GET(request) {
       if (want !== 'gemini') parts.push('subject:"O resumo do seu call chegou"');
       if (want !== 'salesbud') parts.push('subject:"Anotações"');
       const q = encodeURIComponent(`newer_than:${days}d {${parts.join(' ')}}`);
-      const list = await gapi(token, `${G}/messages?maxResults=60&q=${q}`);
-      const msgs = await Promise.all((list.messages || []).map((m) => gapi(token, `${G}/messages/${m.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Message-ID`).catch(() => null)));
+      const list = await gapi(token, `${G}/messages?maxResults=40&q=${q}`);
+      const msgs = await inBatches((list.messages || []).map((m) => m.id), 8, (id) => gapi(token, `${G}/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Message-ID`).catch(() => null));
       const out = msgs.filter(Boolean).map((m) => {
         const subject = hdr(m, 'Subject');
         const type = SALESBUD.test(subject) ? 'salesbud' : GEMINI.test(subject) ? 'gemini' : null;
@@ -53,8 +53,8 @@ export async function GET(request) {
     const contacts = await sbAdmin(`/rest/v1/contacts?owner_id=eq.${user.id}&select=email&email=not.is.null`, { headers: { Prefer: '' } }).catch(() => []);
     const known = new Set((contacts || []).map((c) => (c.email || '').toLowerCase()).filter(Boolean));
     const q = encodeURIComponent(`newer_than:${days}d -from:me -category:promotions -category:social -category:updates -category:forums -subject:"O resumo do seu call chegou" -subject:"Anotações"`);
-    const list = await gapi(token, `${G}/messages?maxResults=80&q=${q}`);
-    const msgs = await Promise.all((list.messages || []).map((m) => gapi(token, `${G}/messages/${m.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=List-Unsubscribe&metadataHeaders=Precedence&metadataHeaders=In-Reply-To&metadataHeaders=Message-ID&metadataHeaders=Auto-Submitted`).catch(() => null)));
+    const list = await gapi(token, `${G}/messages?maxResults=50&q=${q}`);
+    const msgs = await inBatches((list.messages || []).map((m) => m.id), 8, (id) => gapi(token, `${G}/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=List-Unsubscribe&metadataHeaders=Precedence&metadataHeaders=In-Reply-To&metadataHeaders=Message-ID&metadataHeaders=Auto-Submitted`).catch(() => null));
     let hidden = 0;
     const out = [];
     for (const m of msgs.filter(Boolean)) {
