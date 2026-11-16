@@ -381,6 +381,8 @@ summary::before{content:"›";display:inline-block;transition:transform .15s;fon
 details[open] summary::before{transform:rotate(90deg)}
 @media (max-width:980px){.cx{grid-template-columns:1fr}.cxl{position:static}.sigs{grid-template-columns:1fr}}
 
+/* fim de semana no calendário */
+.cd.wk{opacity:.5;background:var(--soft)}
 /* KPI: ícone alinhado no canto, em círculo */
 .kpi>svg,.kpi>i{position:absolute;top:14px;right:14px;width:34px;height:34px;padding:8px;border-radius:50%;background:var(--soft);box-sizing:border-box}
 .kpi small{display:block;padding-right:42px;min-height:18px}
@@ -627,7 +629,7 @@ function forecast(day){const dow=new Date(2026,10,day).getDay();const base=[3,14
 function pAgenda(){
  let body;if(GOOGLE_ON){loadCal();const ev=calToday();if(GCAL){EVENTS.length=0;ev.forEach(x=>EVENTS.push(x));if(evSel>=EVENTS.length)evSel=0}}
  if(agView==='dia'){const ev=EVENTS[evSel]||{t:'Nenhum compromisso hoje',s:8,e:8,k:'',prep:['Sua agenda do Google está livre hoje.']};
-  body=`<div class="grid g21"><div class="card"><h3>${GOOGLE_ON?new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',timeZone:'America/Sao_Paulo'}).replace(/^./,c=>c.toUpperCase()):'Segunda, 16 de novembro'}${GOOGLE_ON&&!GCAL&&!GCAL_ERR?' · carregando…':''}${GCAL_ERR?' · <span class="dn" style="font-size:12px">'+esc(GCAL_ERR)+'</span>':''}<span class="sp"></span><span class="pill b">${EVENTS.length} compromissos</span></h3>
+  body=`<div class="grid g21"><div class="card"><h3>${GOOGLE_ON?new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long',timeZone:'America/Sao_Paulo'}).replace(/^./,c=>c.toUpperCase()):'Segunda, 16 de novembro'}${GOOGLE_ON&&!GCAL&&!GCAL_ERR?' · carregando…':''}${GCAL_ERR?' · <span class="dn" style="font-size:12px">'+esc(GCAL_ERR)+'</span>':''}<span class="sp"></span><span class="pill b">${EVENTS.length} compromissos</span>${isWeekend(new Date())&&GOOGLE_ON?'':`<span class="pill v">previsão: ~${leadForecast(GOOGLE_ON?new Date():new Date(2026,10,16))} leads hoje</span>`}</h3>
   <div class="day"><div>${[8,9,10,11,12,13,14,15,16,17,18].map(h=>`<div class="hr">${h}:00</div>`).join('')}</div>
   <div class="slots">${[8,9,10,11,12,13,14,15,16,17,18].map(()=>`<div class="hr"></div>`).join('')}
   ${EVENTS.map((e,i)=>`<div class="ev ${i===evSel?'on':''}" onclick="evSel=${i};render()" style="top:${(e.s-8)*58+2}px;height:${(e.e-e.s)*58-4}px;background:${e.c}18;border-color:${e.c}"><b>${e.t}</b>${fh(e.s)}–${fh(e.e)} · ${e.k}</div>`).join('')}
@@ -644,11 +646,12 @@ function pAgenda(){
   const wk0=new Date(Y,M,todayD-now.getDay()),wk1=new Date(Y,M,todayD-now.getDay()+7);const inWeek=all.filter(e=>{const d=new Date(e.start);return d>=wk0&&d<wk1});
   const upcoming=all.filter(e=>new Date(e.start)>=new Date(Y,M,todayD)).sort((x,y)=>new Date(x.start)-new Date(y.start)).slice(0,8);
   const mname=new Date(Y,M,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'}).replace(/^./,c=>c.toUpperCase());
-  body=`<div class="kpis"><div class="kpi"><small>Reuniões no mês</small><div class="v">${all.length}</div></div><div class="kpi"><small>Com participantes externos</small><div class="v">${ext.length}</div></div><div class="kpi"><small>Nesta semana</small><div class="v">${inWeek.length}</div></div><div class="kpi"><small>Hoje</small><div class="v">${(byDay[todayD]||[]).length}</div></div></div>
-  <div class="grid g21"><div class="card"><h3>${mname}${GOOGLE_ON&&!GCAL&&!GCAL_ERR?' · carregando…':''}${GCAL_ERR?' · <span class="dn" style="font-size:12px">'+esc(GCAL_ERR)+'</span>':''}</h3>
+  const dt=d=>new Date(Y,M,d),realMonth=cells.filter(d=>d&&d<todayD).reduce((a,d)=>a+((LEADDAY||{})[ymdL(dt(d))]||0),0),prevRest=cells.filter(d=>d&&d>=todayD&&!isWeekend(dt(d))).reduce((a,d)=>a+leadForecast(dt(d)),0);
+  body=`<div class="kpis"><div class="kpi"><small>Leads no mês até hoje</small><div class="v">${realMonth}</div><div class="s">1º contato registrado no CRM</div></div><div class="kpi"><small>Previsão até o fim do mês</small><div class="v">${prevRest}</div><div class="s">mesmos dias do mês passado</div></div><div class="kpi"><small>Reuniões no mês</small><div class="v">${all.length}</div><div class="s">${ext.length} com gente de fora</div></div><div class="kpi"><small>Nesta semana</small><div class="v">${inWeek.length}</div><div class="s">${(byDay[todayD]||[]).length} hoje</div></div></div>
+  <div class="grid g21"><div class="card"><h3>${mname}<span class="sp"></span><span class="muted" style="font-size:11.5px;font-weight:400">fim de semana sem previsão · ~N = previsão pelo mesmo dia do mês passado</span>${GOOGLE_ON&&!GCAL&&!GCAL_ERR?' · carregando…':''}${GCAL_ERR?' · <span class="dn" style="font-size:12px">'+esc(GCAL_ERR)+'</span>':''}</h3>
    <div class="cal">${['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map(w=>`<div class="wd">${w}</div>`).join('')}
-   ${cells.map(d=>{if(!d)return '<div class="cd out"></div>';const ev=byDay[d]||[];
-    return `<div class="cd ${d===todayD?'today':''}"><div class="n">${d}${ev.length?`<span class="pill b" style="font-size:9.5px">${ev.length}</span>`:''}</div>${ev.slice(0,2).map(e=>`<div class="mt" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(e.title)}">● ${e.allDay?'':hhmm(e.start)+' '}${esc(e.title)}</div>`).join('')}${ev.length>2?`<div class="mt">+${ev.length-2} mais</div>`:''}</div>`}).join('')}</div></div>
+   ${cells.map(d=>{if(!d)return '<div class="cd out"></div>';const ev=byDay[d]||[],D0=dt(d),wk=isWeekend(D0),past=d<todayD,n=past?((LEADDAY||{})[ymdL(D0)]||0):leadForecast(D0);
+    return `<div class="cd ${d===todayD?'today':''} ${wk?'wk':''}"><div class="n">${d}${ev.length?`<span class="pill b" style="font-size:9.5px">${ev.length}</span>`:''}</div>${wk?'':`<div class="fc" style="background:${past?'var(--soft)':'var(--blue-soft)'};color:${past?'var(--text)':'var(--blue)'}">${past?'':'~'}${n} lead${n===1?'':'s'}${past?'':' prev.'}</div>`}${ev.slice(0,2).map(e=>`<div class="mt" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(e.title)}">● ${e.allDay?'':hhmm(e.start)+' '}${esc(e.title)}</div>`).join('')}${ev.length>2?`<div class="mt">+${ev.length-2} mais</div>`:''}</div>`}).join('')}</div></div>
    <div class="card" style="align-self:start"><h3><i data-lucide="calendar-clock"></i>Próximas reuniões</h3><div class="list">${upcoming.length?upcoming.map(e=>`<div class="li"><div style="min-width:0"><div class="t">${esc(e.title)}</div><div class="d">${new Date(e.start).toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'})}${e.allDay?'':' · '+hhmm(e.start)}${(e.attendees||[]).length?' · '+esc((e.attendees||[]).map(a=>a.name).slice(0,2).join(', ')):''}</div></div>${e.meet?`<a class="btn sm" style="margin-left:auto" href="${e.meet}" target="_blank" rel="noopener">Meet</a>`:''}</div>`).join(''):'<div class="muted">Nenhuma reunião pela frente neste mês.</div>'}</div></div></div>`;
  }
  return `<div class="ph"><div><h1>Agenda</h1><p>${GOOGLE_ON?'Google Agenda conectado':'Exemplo · conecte o Google em Integrações para ver sua agenda'}</p></div><div class="sp"></div><div class="seg"><button class="${agView==='dia'?'on':''}" onclick="agView='dia';render()">Dia</button><button class="${agView==='mes'?'on':''}" onclick="agView='mes';render()">Mês</button></div><button class="btn pri" onclick="toast('Evento criado (demo)')"><i data-lucide="plus"></i>Evento</button></div>${body}`;
@@ -1053,22 +1056,37 @@ async function fuGmail(id){const d=D.find(x=>x.id===id),to=document.getElementBy
  try{await api('/api/google/gmail',{method:'POST',body:JSON.stringify({to,subject:sub,body})});sent.add(id);d.la=0;dbActivity(d,'email','E-mail enviado: '+sub,to);
   if(d.uuid&&!d.email){const {data}=await sb.from('deals').select('contact_id').eq('id',d.uuid).maybeSingle();if(data&&data.contact_id)await sb.from('contacts').update({email:to}).eq('id',data.contact_id);d.email=to}
   render();toast('E-mail enviado pelo seu Gmail')}catch(e){toast('Não foi possível enviar: '+e.message);b.disabled=false}}
-function syncModal(){modal(`<h3 style="margin:0 0 4px">Importar da conta Google</h3><div class="muted" style="font-size:12.5px">Lê Gmail, Agenda, transcrições do Gemini e e-mails do SalesBud e preenche o CRM.</div>
- <label for="sy_days">Período</label><select class="sel" id="sy_days" style="width:100%"><option value="7" selected>Últimos 7 dias</option><option value="14">Últimos 14 dias</option><option value="30">Últimos 30 dias</option></select>
+function syncModal(){modal(`<h3 style="margin:0 0 4px">Importar histórico do Google</h3><div class="muted" style="font-size:12.5px">Reuniões da Agenda, resumos do SalesBud, anotações do Gemini e transcrições do Drive.</div>
+ <label for="sy_days">Período</label><select class="sel" id="sy_days" style="width:100%"><option value="7">Últimos 7 dias</option><option value="30">Últimos 30 dias</option><option value="90">Últimos 3 meses</option><option value="180">Últimos 6 meses</option><option value="365" selected>Últimos 12 meses</option><option value="730">Últimos 24 meses</option></select>
  <label style="display:flex;gap:8px;align-items:center;font-weight:400;margin-top:14px"><input type="checkbox" id="sy_wipe" checked style="width:16px;height:16px;accent-color:var(--blue)">Remover os 15 negócios de exemplo</label>
- <div class="note">O que entra: pessoas que trocaram e-mail com você ou participaram de reuniões (sem newsletters, notificações e colegas do seu domínio). Cada empresa vira um negócio no estágio certo: reunião vira Diagnóstico, troca de e-mails vira Qualificação, contato de uma via vira Lead novo. Rodar de novo não duplica nada.</div>
+ <div class="note">Importa mês a mês, do mais recente para o mais antigo. Reunião com gente de fora da sua empresa vira contato e negócio. Sem atividade há mais de 90 dias, o negócio vai para Perdido (some do funil, mas fica no histórico). Pode rodar de novo: nada é duplicado.</div>
+ <div class="prog" style="margin-top:12px;display:none" id="sy_bar"><span style="width:0%;background:var(--blue)"></span></div>
  <div id="sy_res" style="font-size:12.5px;margin-top:10px;min-height:16px"></div>
- <div class="row" style="margin-top:14px;justify-content:flex-end"><button class="btn" onclick="closeModal()">Cancelar</button><button class="btn pri" id="sy_go" onclick="runSync()"><i data-lucide="download"></i>Importar</button></div>`)}
-async function runSync(){const b=document.getElementById('sy_go'),r=document.getElementById('sy_res');b.disabled=true;r.className='muted';r.textContent='Importando… pode levar até 1 minuto.';
- try{const j=await api('/api/google/sync',{method:'POST',body:JSON.stringify({days:+document.getElementById('sy_days').value,wipeSample:document.getElementById('sy_wipe').checked})});
-  r.className='up';r.innerHTML=`Pronto: <b>${j.negocios}</b> negócios, <b>${j.contatos}</b> contatos, <b>${j.empresas}</b> empresas, <b>${j.atividades}</b> atividades e <b>${j.conversas}</b> conversas importados de ${esc(j.conta)}${j.removidos_exemplo?` · ${j.removidos_exemplo} exemplos removidos`:''}.`;
-  await loadDeals();await loadActs();GMAIL=null;GCAL=null;GTR=null;GSB=null;setTimeout(()=>{closeModal();go('pipeline');render()},2200)}
- catch(e){r.className='dn';r.textContent='Não foi possível importar: '+e.message;b.disabled=false}}
+ <div class="row" style="margin-top:14px;justify-content:flex-end"><button class="btn" id="sy_cancel" onclick="SYNC_STOP=true;closeModal()">Cancelar</button><button class="btn pri" id="sy_go" onclick="runSync()"><i data-lucide="download"></i>Importar</button></div>`)}
+let SYNC_STOP=false;
+async function runSync(){SYNC_STOP=false;const b=document.getElementById('sy_go'),r=document.getElementById('sy_res'),bar=document.getElementById('sy_bar');b.disabled=true;bar.style.display='block';
+ const days=+document.getElementById('sy_days').value,wipe=document.getElementById('sy_wipe').checked,ymd=d=>d.toLocaleDateString('sv-SE',{timeZone:'America/Sao_Paulo'});
+ const wins=[];let end=new Date();const start=new Date(Date.now()-days*864e5);while(end>start){const st=new Date(Math.max(start,end-30*864e5));wins.push([ymd(st),ymd(end)]);end=new Date(st-864e5)}
+ const tot={negocios:0,contatos:0,empresas:0,atividades:0,conversas:0,removidos_exemplo:0,reunioes_lidas:0,emails_lidos:0};let conta='';
+ try{for(let i=0;i<wins.length&&!SYNC_STOP;i++){let tries=0,j;do{r.className='muted';r.textContent=`Importando ${wins[i][0].split('-').reverse().join('/')} a ${wins[i][1].split('-').reverse().join('/')} (${i+1}/${wins.length})…`;
+   j=await api('/api/google/sync',{method:'POST',body:JSON.stringify({from:wins[i][0],to:wins[i][1],wipeSample:wipe&&i===0&&tries===0})});tries++;conta=j.conta;Object.keys(tot).forEach(k=>tot[k]+=j[k]||0)}while(j.incompleto&&tries<3);
+   bar.firstElementChild.style.width=Math.round((i+1)/wins.length*100)+'%'}
+  r.className='up';r.innerHTML=`Pronto (${esc(conta)}): <b>${tot.reunioes_lidas}</b> reuniões e <b>${tot.emails_lidos}</b> resumos lidos · <b>${tot.negocios}</b> negócios, <b>${tot.contatos}</b> contatos, <b>${tot.empresas}</b> empresas, <b>${tot.atividades}</b> atividades e <b>${tot.conversas}</b> conversas novas${tot.removidos_exemplo?` · ${tot.removidos_exemplo} exemplos removidos`:''}.`;
+  await loadDeals();await loadActs();await loadLeadDays();GMAIL=null;GCAL=null;GTR=null;GSB=null;document.getElementById('sy_cancel').textContent='Fechar';document.getElementById('sy_cancel').onclick=()=>{closeModal();go('pipeline');render()}}
+ catch(e){r.className='dn';r.textContent='Parou com erro: '+e.message+'. O que já entrou ficou salvo; rode de novo para continuar.';b.disabled=false}}
 const ATYPE={email:'mail',whatsapp:'wa',call:'call',meeting:'meet',note:'note',move:'move',alert:'alert',sync:'sync',lead:'lead',transcription:'trans'};
 async function loadActs(){try{const {data,error}=await sb.from('activities').select('type,title,detail,by_ai,source,occurred_at').order('occurred_at',{ascending:false}).limit(150);if(error||!data||!data.length)return;
  const today=new Date().toDateString(),yest=new Date(Date.now()-864e5).toDateString();ACTS.length=0;
  data.forEach(a=>{const d=new Date(a.occurred_at);const day=d.toDateString()===today?'Hoje':d.toDateString()===yest?'Ontem':d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
   ACTS.push({day,h:d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),ai:a.by_ai,ty:ATYPE[a.type]||'note',t:a.title,d:a.detail||'',src:a.source&&/^g(mail|cal)/.test(a.source)?(a.source.startsWith('gcal')?'Importado · Google Agenda':'Importado · Gmail'):(a.source||'Automação')})})}catch(e){}}
+let LEADDAY=null;
+async function loadLeadDays(){try{const {data}=await sb.from('activities').select('contact_id,occurred_at').not('contact_id','is',null).order('occurred_at',{ascending:true}).limit(10000);
+ const first={};(data||[]).forEach(a=>{if(!first[a.contact_id])first[a.contact_id]=a.occurred_at});LEADDAY={};
+ Object.values(first).forEach(t=>{const k=new Date(t).toLocaleDateString('sv-SE',{timeZone:'America/Sao_Paulo'});LEADDAY[k]=(LEADDAY[k]||0)+1})}catch(e){LEADDAY={}}}
+const ymdL=d=>d.toLocaleDateString('sv-SE',{timeZone:'America/Sao_Paulo'});
+const isWeekend=d=>d.getDay()===0||d.getDay()===6;
+/* previsão = leads do mesmo dia no mês passado; se esse dia caiu no fim de semana, usa a sexta anterior */
+function leadForecast(d){const p=new Date(d.getFullYear(),d.getMonth()-1,Math.min(d.getDate(),new Date(d.getFullYear(),d.getMonth(),0).getDate()));while(isWeekend(p))p.setDate(p.getDate()-1);return (LEADDAY&&LEADDAY[ymdL(p)])||0}
 /* ============ SUPABASE: carregar e gravar ============ */
 let LIVE=false;
 const fmtD=d=>d?d.slice(8,10)+'/'+d.slice(5,7):'—';
@@ -1115,7 +1133,7 @@ async function boot(){
  if(!data.session){location.replace('index.html');return}
  const u=data.session.user;CRM_USER={email:u.email,name:(u.user_metadata&&u.user_metadata.name)||u.email.split('@')[0].replace(/[._-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase())};
  document.getElementById('mename').textContent=CRM_USER.name;document.getElementById('memail').textContent=CRM_USER.email;document.getElementById('meav').textContent=CRM_USER.name.split(' ').map(x=>x[0]).slice(0,2).join('').toUpperCase();
- try{await loadDeals();LIVE=true;await checkGoogle();await loadActs()}catch(e){toast('Não consegui ler o banco: '+e.message)}
+ try{await loadDeals();LIVE=true;await checkGoogle();await loadActs();await loadLeadDays()}catch(e){toast('Não consegui ler o banco: '+e.message)}
  render();
 }
 boot();

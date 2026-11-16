@@ -1,4 +1,4 @@
-// POST /api/google/sync {days:7, wipeSample:true}
+// POST /api/google/sync {from:'2026-10-01', to:'2026-10-31', wipeSample:false}  (ou {days:7})
 // Importa da conta Google conectada: reuniões da Agenda viram contatos, empresas, negócios e atividades;
 // resumos do SalesBud, anotações do Gemini (e-mail) e transcrições do Drive viram conversas
 import { json, userFromRequest, sbAdmin } from '../_lib.js';
@@ -32,12 +32,17 @@ export async function POST(request) {
     const user = await userFromRequest(request);
     if (!user) return json({ error: 'Faça login no CRM' }, 401);
     const uid = user.id;
-    const { days = 7, wipeSample = true } = await request.json().catch(() => ({}));
+    const body = await request.json().catch(() => ({}));
+    const wipeSample = !!body.wipeSample;
+    const until = body.to ? new Date(`${body.to}T23:59:59-03:00`) : new Date();
+    const since = body.from ? new Date(`${body.from}T00:00:00-03:00`) : new Date(Date.now() - (Number(body.days) || 7) * 864e5);
+    const days = Math.max(1, Math.round((until - since) / 864e5));
+    const gd = (d) => d.toISOString().slice(0, 10).replace(/-/g, '/');
+    const gwin = `after:${gd(new Date(since.getTime() - 864e5))} before:${gd(new Date(until.getTime() + 864e5))}`;
     const token = await googleToken(uid);
     const profile = await gapi(token, `${G}/profile`);
     const me = profile.emailAddress.toLowerCase(), myDomain = domainOf(me);
     const internal = (e) => e === me || (!PUBLIC.test(myDomain) && domainOf(e) === myDomain) || /calendar\.google\.com$|resource\./.test(e);
-    const since = new Date(Date.now() - days * 864e5);
     const stats = { removidos_exemplo: 0, emails_lidos: 0, reunioes_lidas: 0, contatos: 0, empresas: 0, negocios: 0, atividades: 0, conversas: 0 };
 
     // 0) remove dados de exemplo
@@ -61,8 +66,12 @@ export async function POST(request) {
       if (name && !name.includes('@') && p.name === pretty(email, '')) p.name = name;
       p.events.push(ev); people.set(email, p);
     };
-    const cal = await gapi(token, `https://www.googleapis.com/calendar/v3/calendars/primary/events?${new URLSearchParams({ timeMin: since.toISOString(), timeMax: new Date().toISOString(), singleEvents: 'true', orderBy: 'startTime', maxResults: '250' })}`);
-    const events = (cal.items || []).filter((e) => e.status !== 'cancelled' && e.start?.dateTime);
+    let items = [], pageToken = '';
+    do {
+      const cal = await gapi(token, `https://www.googleapis.com/calendar/v3/calendars/primary/events?${new URLSearchParams({ timeMin: since.toISOString(), timeMax: (until > new Date() ? new Date() : until).toISOString(), singleEvents: 'true', orderBy: 'startTime', maxResults: '250', ...(pageToken ? { pageToken } : {}) })}`);
+      items = items.concat(cal.items || []); pageToken = cal.nextPageToken || '';
+    } while (pageToken && items.length < 2500);
+    const events = items.filter((e) => e.status !== 'cancelled' && e.start?.dateTime);
     stats.reunioes_lidas = events.length;
     stats.emails_lidos = 0;
     const eventByTitle = new Map();
@@ -104,7 +113,8 @@ export async function POST(request) {
       const compName = [...compByName].find(([, id]) => id === cid)?.[0] || '';
       newDeals.push({
         owner_id: uid, title: `Oportunidade · ${main[1].name === compName ? main[1].name : compName.replace(/^./, (c) => c.toUpperCase())}`,
-        company_id: cid, contact_id: ctByEmail.get(main[0])?.id, stage_id: meet ? 3 : (inb && out) ? 2 : 1, value: 0,
+        company_id: cid, contact_id: ctByEmail.get(main[0])?.id, stage_id: (Date.now() - new Date(last).getTime() > 90 * 864e5) ? 7 : meet ? 3 : (inb && out) ? 2 : 1, value: 0,
+        lost_reason: (Date.now() - new Date(last).getTime() > 90 * 864e5) ? 'Sem atividade há mais de 90 dias (importado do histórico)' : null,
         score: meet ? 72 : (inb && out) ? 65 : inb ? 55 : 50, source: meet ? 'Agenda Google' : 'Gmail',
         next_action: meet ? 'Enviar próximo passo da reunião' : inb && !out ? 'Responder e qualificar' : out && !inb ? 'Follow-up do e-mail enviado' : 'Qualificar e definir valor',
         next_action_at: new Date().toISOString().slice(0, 10), last_activity_at: last
@@ -114,7 +124,7 @@ export async function POST(request) {
     stats.negocios = newDeals.length;
 
     // 3) atividades (sem duplicar)
-    const prev = await sel(`/rest/v1/activities?owner_id=eq.${uid}&occurred_at=gte.${new Date(since.getTime() - 864e5).toISOString()}&select=source`);
+    const prev = await sel(`/rest/v1/activities?owner_id=eq.${uid}&occurred_at=gte.${new Date(since.getTime() - 864e5).toISOString()}&occurred_at=lte.${new Date(until.getTime() + 864e5).toISOString()}&select=source`);
     const seen = new Set((prev || []).map((a) => a.source));
     const acts = [];
     for (const [e, p] of people) {
@@ -131,8 +141,8 @@ export async function POST(request) {
     const convPrev = await sel(`/rest/v1/conversations?owner_id=eq.${uid}&select=file_path`);
     const convSeen = new Set((convPrev || []).map((c) => c.file_path));
     const convs = [];
-    const dq = [`mimeType='application/vnd.google-apps.document'`, 'trashed=false', `modifiedTime > '${since.toISOString()}'`, "(name contains 'Transcri' or name contains 'transcri' or name contains 'Transcript' or name contains 'Anotações' or name contains 'Gemini')"].join(' and ');
-    const files = await gapi(token, `https://www.googleapis.com/drive/v3/files?${new URLSearchParams({ q: dq, pageSize: '30', fields: 'files(id,name,modifiedTime)', supportsAllDrives: 'true', includeItemsFromAllDrives: 'true' })}`).catch(() => ({ files: [] }));
+    const dq = [`mimeType='application/vnd.google-apps.document'`, 'trashed=false', `modifiedTime > '${since.toISOString()}'`, `modifiedTime < '${until.toISOString()}'`, "(name contains 'Transcri' or name contains 'transcri' or name contains 'Transcript' or name contains 'Anotações' or name contains 'Gemini')"].join(' and ');
+    const files = await gapi(token, `https://www.googleapis.com/drive/v3/files?${new URLSearchParams({ q: dq, pageSize: '100', fields: 'files(id,name,modifiedTime)', supportsAllDrives: 'true', includeItemsFromAllDrives: 'true' })}`).catch(() => ({ files: [] }));
     for (const f of files.files || []) {
       if (convSeen.has(`drive:${f.id}`) || Date.now() - t0 > 45000) continue;
       const r = await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}/export?mimeType=text/plain`, { headers: { Authorization: `Bearer ${token}` } });
@@ -142,7 +152,7 @@ export async function POST(request) {
       const ct = att.map((e) => ctByEmail.get(e)).find(Boolean), deal = ct && dealByComp.get(ct.company_id);
       convs.push({ owner_id: uid, deal_id: deal?.id || null, kind: /gemini|anota/i.test(f.name) ? 'gemini_notes' : 'meet', file_path: `drive:${f.id}`, summary: f.name, transcript: { text }, occurred_at: f.modifiedTime });
     }
-    const sumList = await gapi(token, `${G}/messages?maxResults=50&q=${q(`newer_than:${days}d {subject:"O resumo do seu call chegou" subject:"Anotações"}`)}`).catch(() => ({}));
+    const sumList = await gapi(token, `${G}/messages?maxResults=200&q=${q(`${gwin} {subject:"O resumo do seu call chegou" subject:"Anotações"}`)}`).catch(() => ({}));
     const dec = (p) => { if (!p) return ''; if (p.mimeType === 'text/plain' && p.body?.data) return Buffer.from(p.body.data, 'base64url').toString('utf8'); for (const x of p.parts || []) { const t = dec(x); if (t) return t; } if (p.mimeType === 'text/html' && p.body?.data) return Buffer.from(p.body.data, 'base64url').toString('utf8').replace(/<style[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' '); return ''; };
     for (const m of sumList.messages || []) {
       if (convSeen.has(`gmail:${m.id}`) || Date.now() - t0 > 50000) continue;
@@ -161,7 +171,7 @@ export async function POST(request) {
 
     await sbAdmin('/rest/v1/integrations?on_conflict=owner_id,provider', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify({ owner_id: uid, provider: 'google', status: 'on', last_sync_at: new Date().toISOString() }) });
     console.log('[sync]', me, JSON.stringify(stats), `${Date.now() - t0}ms`);
-    return json({ ok: true, conta: me, dias: days, ...stats, ms: Date.now() - t0 });
+    return json({ ok: true, conta: me, dias: days, de: since.toISOString().slice(0, 10), ate: until.toISOString().slice(0, 10), incompleto: Date.now() - t0 > 45000, ...stats, ms: Date.now() - t0 });
   } catch (e) {
     console.log('[sync] erro', e.status || 500, e.message);
     return json({ error: e.message }, e.status || 500);
