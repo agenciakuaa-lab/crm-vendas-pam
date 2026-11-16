@@ -27,34 +27,45 @@ async function ctx(request) {
   return { user, token: await googleToken(user.id) };
 }
 
+const SINCE = '2026-09-01';
+async function listIds(token, query, max) {
+  const ids = []; let pageToken = '';
+  do {
+    const j = await gapi(token, `${G}/messages?maxResults=100&q=${encodeURIComponent(query)}${pageToken ? '&pageToken=' + pageToken : ''}`);
+    ids.push(...(j.messages || []).map((m) => m.id));
+    pageToken = j.nextPageToken || '';
+  } while (pageToken && ids.length < max);
+  return ids.slice(0, max);
+}
+
 export async function GET(request) {
   try {
     const { user, token } = await ctx(request);
     const sp = new URL(request.url).searchParams;
     const id = sp.get('id');
-    const days = Math.min(90, Number(sp.get('days')) || 30);
+    // período: desde 01/09/2026 por padrão (ou ?since=AAAA-MM-DD)
+    const since = /^\d{4}-\d{2}-\d{2}$/.test(sp.get('since') || '') ? sp.get('since') : SINCE;
+    const after = `after:${since.replace(/-/g, '/')}`;
     const want = sp.get('source'); // summaries | salesbud | gemini → resumos ; vazio → e-mails de clientes
     if (want) {
       const parts = [];
       if (want !== 'gemini') parts.push('subject:"O resumo do seu call chegou"');
       if (want !== 'salesbud') parts.push('subject:"Anotações"');
-      const q = encodeURIComponent(`newer_than:${days}d {${parts.join(' ')}}`);
-      const list = await gapi(token, `${G}/messages?maxResults=40&q=${q}`);
-      const msgs = await inBatches((list.messages || []).map((m) => m.id), 8, (id) => gapi(token, `${G}/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Message-ID`).catch(() => null));
+      const ids = await listIds(token, `${after} {${parts.join(' ')}}`, 300);
+      const msgs = await inBatches(ids, 10, (id) => gapi(token, `${G}/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Message-ID`).catch(() => null));
       const out = msgs.filter(Boolean).map((m) => {
         const subject = hdr(m, 'Subject');
         const type = SALESBUD.test(subject) ? 'salesbud' : GEMINI.test(subject) ? 'gemini' : null;
         const from = parseFrom(hdr(m, 'From'));
         return type && { id: m.id, threadId: m.threadId, messageId: hdr(m, 'Message-ID'), type, fromName: from.name, fromEmail: from.email, subject, snippet: m.snippet, date: new Date(Number(m.internalDate)).toISOString(), unread: (m.labelIds || []).includes('UNREAD') };
       }).filter(Boolean).filter((m) => want === 'summaries' || m.type === want);
-      return json({ messages: out, total: out.length });
+      return json({ messages: out, total: out.length, since });
     }
     // e-mails de clientes: sem resumos, promoções, redes sociais, atualizações, fóruns e envios automáticos
     const contacts = await sbAdmin(`/rest/v1/contacts?owner_id=eq.${user.id}&select=email&email=not.is.null`, { headers: { Prefer: '' } }).catch(() => []);
     const known = new Set((contacts || []).map((c) => (c.email || '').toLowerCase()).filter(Boolean));
-    const q = encodeURIComponent(`newer_than:${days}d -from:me -category:promotions -category:social -category:updates -category:forums -subject:"O resumo do seu call chegou" -subject:"Anotações"`);
-    const list = await gapi(token, `${G}/messages?maxResults=50&q=${q}`);
-    const msgs = await inBatches((list.messages || []).map((m) => m.id), 8, (id) => gapi(token, `${G}/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=List-Unsubscribe&metadataHeaders=Precedence&metadataHeaders=In-Reply-To&metadataHeaders=Message-ID&metadataHeaders=Auto-Submitted`).catch(() => null));
+    const ids = await listIds(token, `${after} -from:me -category:promotions -category:social -category:updates -category:forums -subject:"O resumo do seu call chegou" -subject:"Anotações"`, 400);
+    const msgs = await inBatches(ids, 10, (id) => gapi(token, `${G}/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=List-Unsubscribe&metadataHeaders=Precedence&metadataHeaders=In-Reply-To&metadataHeaders=Message-ID&metadataHeaders=Auto-Submitted`).catch(() => null));
     let hidden = 0;
     const out = [];
     for (const m of msgs.filter(Boolean)) {
@@ -65,7 +76,7 @@ export async function GET(request) {
       const isReply = !!hdr(m, 'In-Reply-To') || /^\s*(re|res|resp|enc|fw|fwd)\s*:/i.test(subject);
       out.push({ id: m.id, threadId: m.threadId, messageId: hdr(m, 'Message-ID'), fromName: from.name, fromEmail: from.email, subject: subject || '(sem assunto)', snippet: m.snippet, date: new Date(Number(m.internalDate)).toISOString(), isContact, isReply, unread: (m.labelIds || []).includes('UNREAD') });
     }
-    return json({ messages: out, total: out.length, hidden });
+    return json({ messages: out, total: out.length, hidden, since });
   } catch (e) {
     console.log('[google]', new URL(request.url).pathname, e.status || 500, e.message);
     return json({ error: e.message }, e.status || 500);

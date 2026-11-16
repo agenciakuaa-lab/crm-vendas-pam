@@ -18,7 +18,7 @@ export async function POST(request) {
   try {
     const user = await userFromRequest(request);
     if (!user) return json({ error: 'Faça login no CRM' }, 401);
-    const { source = 'text', id, text: given, title = '' } = await request.json();
+    const { source = 'text', id, text: given, title = '', kind = null, date = null } = await request.json();
     let text = given || '', name = title;
     if (source === 'gmail' || source === 'drive') {
       const token = await googleToken(user.id);
@@ -32,7 +32,7 @@ export async function POST(request) {
       }
     }
     if (!text.trim()) return json({ error: 'Sem texto para analisar' }, 400);
-    const deals = await sbAdmin(`/rest/v1/deals?owner_id=eq.${user.id}&select=title,companies(name),contacts(name)&limit=300`, { headers: { Prefer: '' } }).catch(() => []);
+    const deals = await sbAdmin(`/rest/v1/deals?owner_id=eq.${user.id}&select=id,title,companies(name),contacts(name)&limit=300`, { headers: { Prefer: '' } }).catch(() => []);
     const system = `Você é um analista comercial sênior. Vai ler o resumo ou a transcrição de uma reunião de vendas (SalesBud, anotações do Gemini ou transcrição do Meet) e extrair o que um CRM precisa para avançar o negócio.
 
 REGRAS
@@ -67,9 +67,22 @@ ${JSON.stringify((deals || []).map((d) => `${d.title} | ${d.companies?.name || '
     const { text: out, model } = await gemini({ system, contents: [{ role: 'user', parts: [{ text: `Título: ${name}\n\n${text.slice(0, 60000)}` }] }], json: true });
     let data;
     try { data = JSON.parse(out.replace(/^```json\s*|```$/g, '')); } catch { return json({ error: 'A IA respondeu fora do formato. Tente de novo.', raw: out.slice(0, 500) }, 502); }
-    // guarda a análise na conversa importada, se existir
+    // guarda a análise no banco (cria a conversa se ainda não existir)
     if (id && (source === 'gmail' || source === 'drive')) {
-      await sbAdmin(`/rest/v1/conversations?owner_id=eq.${user.id}&file_path=eq.${source}:${id}`, { method: 'PATCH', body: JSON.stringify({ signals: data.sinais, worth_score: data.vale_a_pena?.nota, worth_label: data.vale_a_pena?.rotulo, next_steps: data.cadencia }) }).catch(() => {});
+      const fp = `${source}:${id}`, uid = user.id;
+      const deal = data.negocio_crm ? (deals || []).find((d) => d.title === data.negocio_crm) : null;
+      const analysis = { ...data, model, analyzed_at: new Date().toISOString() };
+      const row = {
+        owner_id: uid, file_path: fp, kind: kind || (source === 'drive' ? 'meet' : (/^\s*O resumo do seu call/i.test(name) ? 'salesbud' : 'gemini_email')),
+        summary: name || data.resumo, transcript: { text: text.slice(0, 50000), analysis }, signals: data.sinais || [],
+        worth_score: data.vale_a_pena?.nota ?? null, worth_label: data.vale_a_pena?.rotulo ?? null, next_steps: data.cadencia || [],
+        ...(deal ? { deal_id: deal.id } : {}), ...(date ? { occurred_at: date } : {})
+      };
+      try {
+        const ex = await sbAdmin(`/rest/v1/conversations?owner_id=eq.${uid}&file_path=eq.${encodeURIComponent(fp)}&select=id`, { headers: { Prefer: '' } });
+        if (ex && ex.length) await sbAdmin(`/rest/v1/conversations?id=eq.${ex[0].id}`, { method: 'PATCH', body: JSON.stringify(row) });
+        else await sbAdmin('/rest/v1/conversations', { method: 'POST', body: JSON.stringify(row) });
+      } catch (e) { console.log('[ai/analyze] não salvou', e.message); }
     }
     return json({ ...data, model });
   } catch (e) {
