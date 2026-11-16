@@ -5,7 +5,7 @@ CRM de vendas no estilo Pipedrive com visual Google. Site estático + funções 
 ## Estrutura
 - `index.html` login (Supabase Auth) · `app.html` CRM · `supa.js` conexão com o banco
 - `api/status.js` mostra quais chaves estão preenchidas (sem revelar valores)
-- `api/hooks/[provider].js` webhooks: `/api/hooks/wa`, `/rdcrm`, `/resend`, `/n8n`, `/hook`
+- `api/hooks/[provider].js` webhooks: `/api/hooks/wa`, `/rdcrm`, `/hook`
 - `api/oauth/google.js` login do Conector Google (`/oauth/google`)
 - `supabase/migrations/` estrutura do banco · `supabase/seed.sql` dados de exemplo
 

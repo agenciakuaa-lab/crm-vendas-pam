@@ -12,12 +12,10 @@ export const KEYS = {
   supabase: [['SUPABASE_URL', 1], ['SUPABASE_SECRET_KEY', 1]],
   google: [['GOOGLE_CLIENT_ID', 1], ['GOOGLE_CLIENT_SECRET', 1], ['GMAIL_PUBSUB_TOPIC', 0]],
   wa: [['WA_PHONE_NUMBER_ID', 1], ['WA_BUSINESS_ACCOUNT_ID', 1], ['WA_ACCESS_TOKEN', 1], ['WA_APP_SECRET', 1], ['WA_VERIFY_TOKEN', 1]],
-  resend: [['RESEND_API_KEY', 1], ['RESEND_FROM', 1], ['RESEND_WEBHOOK_SECRET', 0]],
   rdcrm: [['RD_CRM_TOKEN', 0], ['RD_CRM_CLIENT_ID', 0], ['RD_CRM_CLIENT_SECRET', 0]],
   claude: [['ANTHROPIC_API_KEY', 1]],
   gemini: [['GEMINI_API_KEY', 1]],
   stt: [['TRANSCRIBE_PROVIDER', 1], ['TRANSCRIBE_API_KEY', 1]],
-  n8n: [['N8N_URL', 1], ['N8N_API_KEY', 1]],
   hook: [['CRM_WEBHOOK_SECRET', 1]],
   internal: [['OAUTH_STATE_SECRET', 1]]
 };

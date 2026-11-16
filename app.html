@@ -754,11 +754,11 @@ function pFollowup(){
   <div class="seg" style="margin-bottom:12px"><button class="${fuCh==='wa'?'on':''}" onclick="fuCh='wa';render()"><i data-lucide="message-circle" style="width:14px"></i> WhatsApp</button><button class="${fuCh==='email'?'on':''}" onclick="fuCh='email';render()"><i data-lucide="mail" style="width:14px"></i> E-mail</button></div>
   <div class="muted" style="font-size:12px;margin-bottom:6px">Mensagens frequentes</div>
   <div class="chips" style="margin-bottom:12px">${TPL.map((t,i)=>t.ch==='wa'&&fuCh==='email'?'':`<button class="chip ${i===fuTpl?'on':''}" onclick="fuTpl=${i};render()">${t.k}</button>`).join('')}</div>
-  ${fuCh==='email'?`<input type="text" id="fsub" value="${TPL[fuTpl].k}: ${d.t}" style="margin-bottom:8px" aria-label="Assunto">`:''}
+  ${fuCh==='email'?`<input type="text" id="fto" value="${d.email||''}" placeholder="E-mail do contato" style="margin-bottom:8px" aria-label="Para"><input type="text" id="fsub" value="${TPL[fuTpl].k}: ${d.t}" style="margin-bottom:8px" aria-label="Assunto">`:''}
   <textarea id="ftxt" aria-label="Mensagem" oninput="document.getElementById('bub')&&(document.getElementById('bub').textContent=this.value)">${txt}</textarea>
   ${fuCh==='wa'?`<div class="wa-preview"><div class="bubble" id="bub">${txt}</div></div>`:''}
   <div class="row" style="margin-top:12px;flex-wrap:wrap">
-   ${fuCh==='wa'?`<a class="btn wa" target="_blank" rel="noopener" href="https://wa.me/55${d.tel.replace(/\D/g,'')}?text=${encodeURIComponent(txt)}" onclick="sent.add(${d.id});setTimeout(render,300)"><i data-lucide="send"></i>Abrir no WhatsApp</a>`:`<button class="btn pri" onclick="sent.add(${d.id});render();toast('E-mail enviado pelo Gmail (simulado)')"><i data-lucide="send"></i>Enviar pelo Gmail</button>`}
+   ${fuCh==='wa'?`<a class="btn wa" target="_blank" rel="noopener" href="https://wa.me/55${d.tel.replace(/\D/g,'')}?text=${encodeURIComponent(txt)}" onclick="sent.add(${d.id});setTimeout(render,300)"><i data-lucide="send"></i>Abrir no WhatsApp</a>`:`<button class="btn pri" id="fsend" onclick="fuGmail(${d.id})"><i data-lucide="send"></i>Enviar pelo Gmail</button>`}
    <button class="btn" onclick="cp()"><i data-lucide="copy"></i>Copiar</button><button class="btn" onclick="toast('Agendado para amanhã 9h (demo)')"><i data-lucide="clock"></i>Agendar</button></div>
   <div class="muted" style="font-size:11.5px;margin-top:8px">${fuCh==='wa'?d.tel:''} · variáveis {nome} {empresa} {negocio} preenchidas do CRM</div></div>`:''}
   <div class="card"><h3>Desempenho dos templates</h3><table><thead><tr><th>Template</th><th class="num">Resposta</th><th class="num">Usos</th></tr></thead><tbody>${[['Objeção de preço',58,22],['Proposta sem resposta',44,61],['Reativação',31,38],['Confirmar reunião',87,74],['Proposta vencendo',52,19]].map(r=>`<tr><td>${r[0]}</td><td class="num"><b>${r[1]}%</b></td><td class="num">${r[2]}</td></tr>`).join('')}</tbody></table></div></div></div>`;
@@ -869,8 +869,8 @@ const ACTS=[
  {day:'Hoje',h:'09:42',ai:true,ty:'mail',t:'E-mail classificado como estratégico',d:'Dra. Renata Alves · Clínica Vitta · "Respondeu proposta"',src:'Agente IA · Gmail'},
  {day:'Hoje',h:'09:30',ai:false,ty:'call',t:'Ligação realizada (12 min)',d:'Carlos Andrade · Andrade Advocacia'},
  {day:'Hoje',h:'08:31',ai:true,ty:'brief',t:'Resumo diário gerado',d:'7 follow-ups, 4 prazos, 6 compromissos',src:'Agente IA · rotina 8h30'},
- {day:'Hoje',h:'08:05',ai:true,ty:'lead',t:'Lead criado e qualificado (score 47)',d:'Jorge Silva · Auto Peças SC · origem Google Ads',src:'n8n · formulário LP'},
- {day:'Hoje',h:'08:06',ai:true,ty:'wa',t:'Boas-vindas enviada no WhatsApp',d:'Jorge Silva · template "Primeiro contato"',src:'n8n · WhatsApp API'},
+ {day:'Hoje',h:'08:05',ai:true,ty:'lead',t:'Lead criado e qualificado (score 47)',d:'Jorge Silva · Auto Peças SC · origem Google Ads',src:'Automação · formulário LP'},
+ {day:'Hoje',h:'08:06',ai:true,ty:'wa',t:'Boas-vindas enviada no WhatsApp',d:'Jorge Silva · template "Primeiro contato"',src:'Automação · WhatsApp API'},
  {day:'Ontem',h:'16:10',ai:true,ty:'trans',t:'Reunião transcrita e resumida',d:'Camila Rocha · EdTech Saber+ · 42 min · score atualizado 78 → 83',src:'Agente IA · Meet'},
  {day:'Ontem',h:'15:00',ai:false,ty:'meet',t:'Reunião realizada',d:'Camila Rocha · EdTech Saber+'},
  {day:'Ontem',h:'14:20',ai:false,ty:'move',t:'Negócio movido para Negociação',d:'EdTech Saber+ · Funil completo'},
@@ -896,19 +896,16 @@ function cAtividades(){mk('aw',{type:'bar',data:{labels:['S43','S44','S45','S46'
 /* ============ INTEGRAÇÕES ============ */
 const VERCEL_ENV_URL='https://vercel.com/kuaas-projects-bfb3bfc8/crm-vendas-pam/settings/environment-variables';
 const SITE='https://crm-vendas-pam.vercel.app';
-const IGROUPS=['Google Workspace','Mensagens e e-mail','CRM','Inteligência artificial','Infraestrutura'];
+const IGROUPS=['Google Workspace','Mensagens','CRM','Inteligência artificial','Infraestrutura'];
 const GENV=[['GOOGLE_CLIENT_ID','Client ID do OAuth',1],['GOOGLE_CLIENT_SECRET','Client Secret do OAuth',1]];
 const INTS=[
- {id:'gmail',n:'Gmail',c:'#ea4335',l:'M',g:'Google Workspace',google:true,d:'Lê e-mails estratégicos e responde follow-ups na mesma conversa.',use:'E-mails estratégicos · Follow-ups',env:[...GENV,['GMAIL_PUBSUB_TOPIC','Tópico Pub/Sub (aviso de resposta)',0]],how:['Google Cloud > Pub/Sub: crie o tópico gmail-crm','Em Permissões, adicione gmail-api-push@system.gserviceaccount.com como Publicador','Cole o nome completo (projects/…/topics/gmail-crm) em GMAIL_PUBSUB_TOPIC']},
+ {id:'gmail',n:'Gmail',c:'#ea4335',l:'M',g:'Google Workspace',google:true,d:'Lê e-mails estratégicos, envia follow-ups e cadências pela conta profissional e lê os resumos do SalesBud.',use:'E-mails estratégicos · Follow-ups · Conversas',env:[...GENV,['GMAIL_PUBSUB_TOPIC','Tópico Pub/Sub (aviso de resposta)',0]],how:['Google Cloud > Pub/Sub: crie o tópico gmail-crm','Em Permissões, adicione gmail-api-push@system.gserviceaccount.com como Publicador','Cole o nome completo (projects/…/topics/gmail-crm) em GMAIL_PUBSUB_TOPIC']},
  {id:'calendar',n:'Google Agenda',c:'#4285f4',l:'31',g:'Google Workspace',google:true,d:'Agenda do dia, reuniões e convites criados pelo CRM.',use:'Agenda',env:GENV},
  {id:'meet',n:'Google Meet + Drive',c:'#00897b',l:'M',g:'Google Workspace',google:true,d:'Lê transcrições e gravações do Meet salvas no Drive.',use:'Conversas',env:GENV},
  {id:'sheets',n:'Google Sheets',c:'#0f9d58',l:'S',g:'Google Workspace',google:true,d:'Exporta metas e relatórios para planilhas.',use:'Metas · Gráficos',env:GENV},
- {id:'wa',n:'WhatsApp Cloud API',c:'#16a34a',l:'W',g:'Mensagens e e-mail',d:'Follow-up em 1 clique, cadências com modelos aprovados e respostas no CRM.',use:'Follow-ups · Conversas',hook:true,
+ {id:'wa',n:'WhatsApp Cloud API',c:'#16a34a',l:'W',g:'Mensagens',d:'Follow-up em 1 clique, cadências com modelos aprovados e respostas no CRM.',use:'Follow-ups · Conversas',hook:true,
   env:[['WA_PHONE_NUMBER_ID','Phone Number ID',1],['WA_BUSINESS_ACCOUNT_ID','WhatsApp Business Account ID',1],['WA_ACCESS_TOKEN','Token permanente (usuário do sistema)',1],['WA_APP_SECRET','App Secret (valida os webhooks)',1],['WA_VERIFY_TOKEN','Verify token do webhook',1,'já criado por mim: copie o valor na Vercel e cole na Meta']],
   how:['developers.facebook.com: crie um app do tipo Business e adicione o produto WhatsApp','Em WhatsApp > API Setup: copie o Phone Number ID e o WhatsApp Business Account ID','Business Settings > Usuários do sistema: gere o token com whatsapp_business_messaging e whatsapp_business_management','App settings > Basic: copie o App Secret','WhatsApp > Configuration: cole a URL do webhook abaixo e o valor de WA_VERIFY_TOKEN']},
- {id:'resend',n:'Resend',c:'#111111',l:'R',g:'Mensagens e e-mail',d:'Cadências automáticas e e-mails em volume por subdomínio próprio.',use:'Follow-ups (cadência)',hook:true,
-  env:[['RESEND_API_KEY','API key (re_…)',1],['RESEND_FROM','Remetente (ex.: maykom@contato.mosaicai.com.br)',1],['RESEND_WEBHOOK_SECRET','Signing secret do webhook (whsec_…)',0]],
-  how:['resend.com > Domains: adicione o subdomínio e configure SPF e DKIM no DNS','API Keys: crie uma chave com permissão só de envio','Webhooks: cadastre a URL abaixo e copie o signing secret']},
  {id:'rdcrm',n:'RD Station CRM',c:'#0f766e',l:'RD',g:'CRM',d:'Negociações, funis, contatos, tarefas e motivos de perda nos dois sentidos.',use:'Pipeline · Prazos · Atividades',hook:true,any:true,
   env:[['RD_CRM_TOKEN','Token da API v1 (mais simples)',0],['RD_CRM_CLIENT_ID','Client ID da API v2',0],['RD_CRM_CLIENT_SECRET','Client Secret da API v2',0]],
   how:['Opção simples: no RD Station CRM, Perfil > Token, e cole em RD_CRM_TOKEN','Opção API v2: crie um app, cadastre a URL de retorno abaixo e cole Client ID e Client Secret','Em Integrações > Webhooks do RD, cadastre a URL do webhook abaixo'],cb:'/oauth/rdcrm'},
@@ -916,7 +913,6 @@ const INTS=[
  {id:'gemini',n:'Gemini API',c:'#4285f4',l:'G',g:'Inteligência artificial',d:'Alternativa do Google para resumos e classificação.',use:'Conversas · E-mails',env:[['GEMINI_API_KEY','API key (AIza…)',1]],how:['aistudio.google.com > Get API key']},
  {id:'stt',n:'Transcrição',c:'#374151',l:'Tx',g:'Inteligência artificial',d:'Transcreve áudios de WhatsApp e ligações.',use:'Conversas',env:[['TRANSCRIBE_PROVIDER','Provedor (openai, deepgram ou assemblyai)',1],['TRANSCRIBE_API_KEY','API key do provedor',1]],how:['Escolha o provedor e crie a API key','Reuniões do Meet usam a transcrição nativa do Google']},
  {id:'supabase',n:'Supabase',c:'#3ecf8e',l:'SB',g:'Infraestrutura',d:'Banco de dados e login. A secret key permite que as funções gravem webhooks e tokens.',use:'Todo o CRM',env:[['SUPABASE_URL','Project URL',1,'já preenchida'],['SUPABASE_SECRET_KEY','Secret key (sb_secret_…)',1]],how:['Supabase > Project Settings > API Keys > Secret keys: copie a chave','Cole em SUPABASE_SECRET_KEY. Ela nunca vai para o navegador','Rode no SQL Editor o arquivo supabase/migrations/20261115000002_backend.sql']},
- {id:'n8n',n:'n8n',c:'#ea4b71',l:'n8n',g:'Infraestrutura',d:'Workflows: lead da LP, alertas, cadências e resumo diário.',use:'Atividades (automações IA)',hook:true,env:[['N8N_URL','URL da instância',1],['N8N_API_KEY','API key do n8n',1]],how:['n8n > Settings > n8n API > Create API key','Nos workflows, envie eventos para o webhook abaixo assinando com CRM_WEBHOOK_SECRET']},
  {id:'hook',n:'Webhook / API REST',c:'#64748b',l:'{}',g:'Infraestrutura',d:'Endpoint próprio para outros sistemas criarem eventos no CRM.',use:'Pipeline · Atividades',hook:true,env:[['CRM_WEBHOOK_SECRET','Segredo de assinatura (HMAC SHA-256)',1,'já criado por mim']],how:['Envie POST com JSON para a URL abaixo','Cabeçalho x-crm-signature = HMAC SHA-256 do corpo com CRM_WEBHOOK_SECRET']}
 ];
 let ENVST=null,ENVERR=null;
@@ -1048,16 +1044,23 @@ function sbView(){const id=GTRSEL.slice(3),f=(GSB||[]).find(x=>x.id===id);if(!f)
  return `<div class="cxd"><div class="cxh"><div class="av" style="width:44px;height:44px;background:var(--amber-soft);color:var(--amber)"><i data-lucide="mic"></i></div><div><h2>${esc(f.subject)}</h2><span class="muted">SalesBud · recebido por e-mail · ${new Date(f.date).toLocaleString('pt-BR')}</span></div><span class="sp" style="flex:1"></span><a class="btn" href="https://mail.google.com/mail/u/0/#all/${f.threadId}" target="_blank" rel="noopener"><i data-lucide="external-link"></i>Abrir no Gmail</a></div>
  <div class="note" style="margin:0">O SalesBud já manda resumo e insights. Com a chave do Claude ou do Gemini, o CRM cruza isso com o negócio e calcula termômetro e próximo passo.</div>
  <section><h4>Conteúdo</h4><div class="mbody" style="max-height:620px;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:16px">${t==='…'||!t?'Carregando…':esc(t)}</div></section></div>`}
+async function fuGmail(id){const d=D.find(x=>x.id===id),to=document.getElementById('fto').value.trim(),sub=document.getElementById('fsub').value.trim(),body=document.getElementById('ftxt').value.trim();
+ if(!/^\S+@\S+\.\S+$/.test(to)){toast('Informe o e-mail do contato');return}
+ if(typeof GOOGLE_ON==='undefined'||!GOOGLE_ON){toast('Conecte a conta Google em Integrações para enviar de verdade');return}
+ const b=document.getElementById('fsend');b.disabled=true;
+ try{await api('/api/google/gmail',{method:'POST',body:JSON.stringify({to,subject:sub,body})});sent.add(id);d.la=0;dbActivity(d,'email','E-mail enviado: '+sub,to);
+  if(d.uuid&&!d.email){const {data}=await sb.from('deals').select('contact_id').eq('id',d.uuid).maybeSingle();if(data&&data.contact_id)await sb.from('contacts').update({email:to}).eq('id',data.contact_id);d.email=to}
+  render();toast('E-mail enviado pelo seu Gmail')}catch(e){toast('Não foi possível enviar: '+e.message);b.disabled=false}}
 /* ============ SUPABASE: carregar e gravar ============ */
 let LIVE=false;
 const fmtD=d=>d?d.slice(8,10)+'/'+d.slice(5,7):'—';
 async function loadDeals(){
- const {data,error}=await sb.from('deals').select('id,title,value,probability,score,source,next_action,next_action_at,last_activity_at,stage_id,stages(name,probability),companies(name),contacts(name,phone)').order('created_at');
+ const {data,error}=await sb.from('deals').select('id,title,value,probability,score,source,next_action,next_action_at,last_activity_at,stage_id,stages(name,probability),companies(name),contacts(name,phone,email)').order('created_at');
  if(error)throw error;
  const old=[...D];let nextId=Math.max(0,...old.map(x=>x.id))+1;
  const rows=data.filter(r=>r.stages&&r.stages.name!=='Perdido').map(r=>{
   const comp=r.companies?r.companies.name:'—',match=old.find(o=>o.e===comp&&!o._used);if(match)match._used=true;
-  return {id:match?match.id:nextId++,uuid:r.id,t:r.title,e:comp,p:r.contacts?r.contacts.name:'—',tel:(r.contacts&&r.contacts.phone||'').replace(/^(\d{2})(\d{5})(\d{4})$/,'$1 $2-$3'),
+  return {id:match?match.id:nextId++,uuid:r.id,t:r.title,e:comp,p:r.contacts?r.contacts.name:'—',email:r.contacts&&r.contacts.email||'',tel:(r.contacts&&r.contacts.phone||'').replace(/^(\d{2})(\d{5})(\d{4})$/,'$1 $2-$3'),
    v:+r.value,s:r.stages.name,pr:r.probability??r.stages.probability,sc:r.score??50,o:r.source||'—',
    la:Math.max(0,Math.floor((Date.now()-new Date(r.last_activity_at))/864e5)),nx:r.next_action||'Definir próxima ação',nd:fmtD(r.next_action_at)}});
  D.length=0;rows.forEach(r=>D.push(r));
@@ -1073,7 +1076,7 @@ function newDeal(){modal(`<h3 style="margin:0 0 4px">Novo negócio</h3><div clas
  <label for="nd_t">Negócio</label><input type="text" id="nd_t" placeholder="Ex.: Automação de atendimento">
  <label for="nd_e">Empresa</label><input type="text" id="nd_e" placeholder="Ex.: Clínica Vitta">
  <label for="nd_p">Contato</label><input type="text" id="nd_p" placeholder="Nome da pessoa">
- <label for="nd_tel">WhatsApp</label><input type="text" id="nd_tel" placeholder="48 99999-9999">
+ <div class="row" style="gap:10px"><div style="flex:1"><label for="nd_tel">WhatsApp</label><input type="text" id="nd_tel" placeholder="48 99999-9999"></div><div style="flex:1"><label for="nd_em">E-mail</label><input type="text" id="nd_em" placeholder="nome@empresa.com.br"></div></div>
  <div class="row" style="gap:10px"><div style="flex:1"><label for="nd_v">Valor (R$)</label><input type="number" id="nd_v" placeholder="5000"></div><div style="flex:1"><label for="nd_o">Origem</label><select class="sel" id="nd_o" style="width:100%">${['Meta Ads','Google Ads','Indicação','LinkedIn','Instagram','Orgânico','Evento','RD Station'].map(o=>`<option>${o}</option>`).join('')}</select></div></div>
  <label for="nd_sc">Temperatura</label><select class="sel" id="nd_sc" style="width:100%"><option value="85">Quente</option><option value="70" selected>Morno</option><option value="55">Frio</option><option value="40">Gelado</option></select>
  <div id="nd_err" class="dn" style="font-size:12.5px;margin-top:8px;min-height:16px"></div>
@@ -1083,7 +1086,7 @@ async function saveDeal(){const g=id=>document.getElementById(id).value.trim(),e
  if(!LIVE){er.textContent='Sem conexão com o banco.';return}
  document.getElementById('nd_go').disabled=true;
  try{const c=await sb.from('companies').insert({name:g('nd_e')}).select('id').single();if(c.error)throw c.error;
-  const ct=await sb.from('contacts').insert({company_id:c.data.id,name:g('nd_p'),phone:g('nd_tel').replace(/\D/g,''),source:g('nd_o'),lead_score:+g('nd_sc')}).select('id').single();if(ct.error)throw ct.error;
+  const ct=await sb.from('contacts').insert({company_id:c.data.id,name:g('nd_p'),email:g('nd_em')||null,phone:g('nd_tel').replace(/\D/g,''),source:g('nd_o'),lead_score:+g('nd_sc')}).select('id').single();if(ct.error)throw ct.error;
   const dl=await sb.from('deals').insert({title:g('nd_t'),company_id:c.data.id,contact_id:ct.data.id,stage_id:1,value:+g('nd_v')||0,probability:10,score:+g('nd_sc'),source:g('nd_o'),next_action:'Primeiro contato',next_action_at:new Date().toISOString().slice(0,10)}).select('id').single();if(dl.error)throw dl.error;
   await sb.from('activities').insert({deal_id:dl.data.id,type:'lead',title:'Negócio criado',detail:g('nd_e')+' · '+g('nd_t')});
   await loadDeals();closeModal();render();toast('Negócio criado em Lead novo')}

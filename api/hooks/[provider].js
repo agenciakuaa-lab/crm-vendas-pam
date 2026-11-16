@@ -1,5 +1,4 @@
-// Webhooks: /api/hooks/wa · /api/hooks/rdcrm · /api/hooks/resend · /api/hooks/n8n · /api/hooks/hook
-import crypto from 'node:crypto';
+// Webhooks: /api/hooks/wa · /api/hooks/rdcrm · /api/hooks/hook
 import { env, json, hmacHex, safeEqual, saveEvent } from '../_lib.js';
 
 const providerOf = (request) => new URL(request.url).pathname.split('/').filter(Boolean).pop();
@@ -25,15 +24,7 @@ export async function POST(request) {
     if (!secret) return json({ error: 'WA_APP_SECRET não configurado' }, 503);
     const sig = (h['x-hub-signature-256'] || '').replace(/^sha256=/, '');
     if (!safeEqual(sig, hmacHex(secret, raw))) return json({ error: 'assinatura inválida' }, 401);
-  } else if (p === 'resend') {
-    const secret = env('RESEND_WEBHOOK_SECRET');
-    if (secret) { // assinatura Svix
-      const key = Buffer.from(secret.replace(/^whsec_/, ''), 'base64');
-      const expected = crypto.createHmac('sha256', key).update(`${h['svix-id']}.${h['svix-timestamp']}.${raw}`).digest('base64');
-      const ok = (h['svix-signature'] || '').split(' ').some((s) => safeEqual(s.split(',')[1] || '', expected));
-      if (!ok) return json({ error: 'assinatura inválida' }, 401);
-    }
-  } else if (p === 'hook' || p === 'n8n') {
+  } else if (p === 'hook') {
     const secret = env('CRM_WEBHOOK_SECRET');
     if (!secret) return json({ error: 'CRM_WEBHOOK_SECRET não configurado' }, 503);
     if (!safeEqual(h['x-crm-signature'] || '', hmacHex(secret, raw))) return json({ error: 'assinatura inválida' }, 401);
